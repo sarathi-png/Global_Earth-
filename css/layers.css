@@ -1,0 +1,23 @@
+#legend {
+    position: absolute;
+    bottom: 100px;
+    left: 20px;
+    padding: 15px;
+    z-index: 10;
+}
+
+#legend h4 {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+    letter-spacing: 1px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.85rem;
+    margin-bottom: 6px;
+}

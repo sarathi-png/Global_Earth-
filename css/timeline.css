@@ -1,0 +1,66 @@
+#currentYearDisplay {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--accent-cyan);
+    min-width: 60px;
+}
+
+#yearSlider {
+    width: 100%;
+    -webkit-appearance: none;
+    background: rgba(255, 255, 255, 0.05);
+    height: 4px;
+    border-radius: 2px;
+    outline: none;
+}
+
+#yearSlider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    background: var(--accent-cyan);
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: var(--glow-cyan);
+}
+
+#playTimeline {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.05);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-primary);
+}
+
+#playTimeline:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.range-wrapper {
+    flex-grow: 1;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+#timeline {
+    position: absolute;
+    bottom: 20px;
+    left: 320px;
+    right: 420px;
+    height: 70px;
+    z-index: 10;
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+}
+
+.timeline-controls {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    width: 100%;
+}

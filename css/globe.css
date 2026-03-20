@@ -1,0 +1,38 @@
+#globeContainer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+}
+
+.cesium-viewer {
+    background: var(--bg-dark);
+}
+
+.cesium-widget-credits {
+    display: none !important;
+}
+
+.cesium-timeline-main, 
+.cesium-animation-wrapper, 
+.cesium-viewer-bottom,
+.cesium-viewer-geocoderContainer,
+.cesium-viewer-navigationContainer {
+    display: none !important;
+}
+
+/* Atmosphere Glow */
+#globeContainer::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100%;
+    height: 100%;
+    transform: translate(-50%, -50%);
+    background: radial-gradient(circle, rgba(0, 242, 255, 0.05) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 1;
+}

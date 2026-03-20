@@ -1,0 +1,95 @@
+:root {
+    --bg-dark: #0a0c10;
+    --panel-bg: rgba(18, 22, 28, 0.75);
+    --panel-blur: 12px;
+    --panel-border: rgba(255, 255, 255, 0.1);
+    --accent-cyan: #00f2ff;
+    --accent-amber: #ffb400;
+    --accent-red: #ff3b30;
+    --accent-purple: #bf5af2;
+    --text-primary: #e0e0e0;
+    --text-secondary: #a0a0a0;
+    --glow-cyan: 0 0 15px rgba(0, 242, 255, 0.3);
+    --glow-red: 0 0 15px rgba(255, 59, 48, 0.4);
+    --font-main: 'Inter', sans-serif;
+    --font-heading: 'Outfit', sans-serif;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: var(--bg-dark);
+    color: var(--text-primary);
+    font-family: var(--font-main);
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+}
+
+#appContainer {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+/* Glassmorphism Panels */
+.glass-panel {
+    background: var(--panel-bg);
+    backdrop-filter: blur(var(--panel-blur));
+    -webkit-backdrop-filter: blur(var(--panel-blur));
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* Generic UI Elements */
+h1, h2, h3, h4 {
+    font-family: var(--font-heading);
+    letter-spacing: 0.5px;
+}
+
+button {
+    cursor: pointer;
+    background: none;
+    border: none;
+    color: inherit;
+    font-family: inherit;
+}
+
+.icon-btn {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.icon-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
