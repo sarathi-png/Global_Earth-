@@ -1,46 +1,40 @@
 const DisastersLayer = {
     entities: [],
-    visible: true,
+    visible: false,
 
     async init() {
+        console.log("DisastersLayer: init started");
         try {
             const response = await fetch('data/disasters.json');
             const data = await response.json();
+            console.log(`DisastersLayer: Data fetched, length: ${data.length}`);
             this.renderMarkers(data);
-            console.log(`Disasters Layer Initialized: ${data.length} markers`);
+            console.log(`DisastersLayer: renderMarkers called, entities now: ${this.entities.length}`);
         } catch (error) {
-            console.error("Error loading disasters data:", error);
+            console.error("DisastersLayer: Error loading disasters data:", error);
         }
     },
 
     renderMarkers(data) {
-        if (!GlobeManager.viewer) return;
+        console.log("DisastersLayer: renderMarkers started");
+        if (!GlobeManager.viewer) {
+            console.error("DisastersLayer: GlobeManager.viewer is null!");
+            return;
+        }
+        const color = CONFIG.LAYERS.disasters.color;
 
         data.forEach(item => {
-            const entity = GlobeManager.viewer.entities.add({
-                name: item.title,
-                position: Cesium.Cartesian3.fromDegrees(item.lng, item.lat, 1000),
-                point: {
-                    pixelSize: 12,
-                    color: Cesium.Color.fromCssColorString(CONFIG.LAYERS.disasters.color),
-                    outlineColor: Cesium.Color.WHITE,
-                    outlineWidth: 2,
-                    heightReference: Cesium.HeightReference.RELATIVE_TO_GROUND
-                },
-                properties: {
-                    title: item.title,
-                    description: item.description,
-                    type: item.type,
-                    year: item.year,
-                    severity: item.severity,
-                    lat: item.lat,
-                    lng: item.lng
-                }
-            });
-            this.entities.push(entity);
+            try {
+                const entity = MarkerFactory.createPoint(item, color);
+                entity.show = this.visible;
+                this.entities.push(entity);
+            } catch (e) {
+                console.error("DisastersLayer: Error creating marker for item", item.id, e);
+            }
         });
 
         document.getElementById('activeMarkerCount').innerText = this.entities.length;
+        console.log(`DisastersLayer: Finished rendering ${this.entities.length} markers`);
     },
 
     toggleVisibility(show) {
@@ -50,3 +44,5 @@ const DisastersLayer = {
         });
     }
 };
+
+window.DisastersLayer = DisastersLayer;

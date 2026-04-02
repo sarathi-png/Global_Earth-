@@ -51,6 +51,19 @@
     margin-bottom: 20px;
 }
 
+#drawerImage {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    object-fit: cover;
+    border: 1px solid var(--panel-border);
+}
+
+#drawerImagePlaceholder {
+    margin-bottom: 20px;
+}
+
 .metadata-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;

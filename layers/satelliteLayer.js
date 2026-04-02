@@ -36,6 +36,14 @@ const SatelliteLayer = {
                 id: id,
                 position: positionProperty,
                 show: this.visible,
+                properties: {
+                    id: new Cesium.ConstantProperty(id),
+                    title: new Cesium.ConstantProperty(id),
+                    type: new Cesium.ConstantProperty('satellite'),
+                    description: new Cesium.ConstantProperty(`Orbital satellite ${id} in Low Earth Orbit. Inclination: ${(inclination * 180 / Math.PI).toFixed(2)}°. Altitude: ${Math.floor(altitude/1000)}km.`),
+                    year: new Cesium.ConstantProperty(new Date().getFullYear()),
+                    severity: new Cesium.ConstantProperty('Low')
+                },
                 point: {
                     pixelSize: 5,
                     color: Cesium.Color.fromCssColorString('#00f2ff'),
@@ -75,3 +83,5 @@ const SatelliteLayer = {
         this.entities.forEach(e => e.show = show);
     }
 };
+
+window.SatelliteLayer = SatelliteLayer;

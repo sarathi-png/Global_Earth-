@@ -27,11 +27,22 @@ const ControlManager = {
 
     onHover(entity, position) {
         const popup = document.getElementById('popup');
-        if (!popup || !entity.properties) return;
-        if (entity) {
+        if (!popup || !entity) return;
+        
+        // Use a safe property getter
+        const getVal = (prop) => (prop && typeof prop.getValue === 'function') ? prop.getValue() : prop;
+        
+        if (entity.properties) {
             HoverPopup.show(entity, position);
         } else {
-            HoverPopup.hide();
+            // Fallback for entities without property bags (like planes/satellites if not updated yet)
+            HoverPopup.show({
+                properties: {
+                    title: { getValue: () => entity.id || 'Unknown Object' },
+                    type: { getValue: () => 'info' },
+                    year: { getValue: () => '' }
+                }
+            }, position);
         }
     },
 
@@ -40,19 +51,22 @@ const ControlManager = {
     },
 
     onClick(entity) {
-        if (entity) {
+        if (entity && entity.properties) {
             DrawerManager.open(entity);
             
             const props = entity.properties;
-            const zoom = (CONFIG.CAMERA && CONFIG.CAMERA.incidentZoom) ||
-                         (CONFIG.CAMERA_DEFAULTS && CONFIG.CAMERA_DEFAULTS.destination && CONFIG.CAMERA_DEFAULTS.destination.height) ||
-                         1200000;
+            const getVal = (prop) => (prop && typeof prop.getValue === 'function') ? prop.getValue() : prop;
 
-            CameraManager.flyTo(
-                props.lat.getValue(),
-                props.lng.getValue(),
-                zoom
-            );
+            const lat = getVal(props.lat);
+            const lng = getVal(props.lng);
+
+            if (lat !== undefined && lng !== undefined) {
+                const zoom = (CONFIG.CAMERA && CONFIG.CAMERA.incidentZoom) ||
+                             (CONFIG.CAMERA_DEFAULTS && CONFIG.CAMERA_DEFAULTS.destination && CONFIG.CAMERA_DEFAULTS.destination.height) ||
+                             1200000;
+
+                CameraManager.flyTo(lat, lng, zoom);
+            }
         }
     }
 };

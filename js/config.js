@@ -29,11 +29,41 @@ const CONFIG = {
             color: '#ffb400',
             icon: 'fa-house-damage'
         },
+        wars: {
+            enabled: true,
+            color: '#ff3b30',
+            icon: 'fa-shield-alt'
+        },
+        mysteries: {
+            enabled: false,
+            color: '#bf5af2',
+            icon: 'fa-question-circle'
+        },
+        historical: {
+            enabled: false,
+            color: '#00f2ff',
+            icon: 'fa-history'
+        },
         borders: {
             enabled: false,
             color: '#00f2ff',
             opacity: 0.5,
             icon: 'fa-globe-americas'
+        },
+        weather: {
+            enabled: false,
+            color: '#ffffff',
+            icon: 'fa-cloud'
+        },
+        aircraft: {
+            enabled: false,
+            color: '#00d4ff',
+            icon: 'fa-plane'
+        },
+        satellite: {
+            enabled: false,
+            color: '#ff9500',
+            icon: 'fa-satellite'
         }
     }
 };

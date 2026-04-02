@@ -5,19 +5,20 @@ const MarkerPulse = {
         if (!entity || !entity.point) return;
 
         let color;
+        const hasConfig = typeof CONFIG !== 'undefined' && CONFIG.LAYERS;
         switch(type) {
-            case 'war': color = CONFIG.LAYERS.wars ? CONFIG.LAYERS.wars.color : '#ff3b30'; break;
-            case 'disaster': color = CONFIG.LAYERS.disasters.color; break;
-            case 'mystery': color = CONFIG.LAYERS.mysteries ? CONFIG.LAYERS.mysteries.color : '#bf5af2'; break;
+            case 'war': color = hasConfig && CONFIG.LAYERS.wars ? CONFIG.LAYERS.wars.color : '#ff3b30'; break;
+            case 'disaster': color = hasConfig && CONFIG.LAYERS.disasters ? CONFIG.LAYERS.disasters.color : '#ffb400'; break;
+            case 'mystery': color = hasConfig && CONFIG.LAYERS.mysteries ? CONFIG.LAYERS.mysteries.color : '#bf5af2'; break;
             default: color = '#00f2ff';
         }
 
         // We use GSAP to animate the pixelSize of the point
-        const pulseObj = { size: 12, alpha: 1 };
+        const pulseObj = { size: 8, alpha: 1 };
         
         const tl = gsap.timeline({ repeat: -1, yoyo: true });
         tl.to(pulseObj, {
-            size: 24,
+            size: 16,
             duration: 1.5,
             ease: "sine.inOut",
             onUpdate: () => {

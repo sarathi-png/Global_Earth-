@@ -40,6 +40,14 @@ const AircraftLayer = {
                 position: positionProperty,
                 orientation: new Cesium.VelocityOrientationProperty(positionProperty),
                 show: this.visible,
+                properties: {
+                    id: new Cesium.ConstantProperty(id),
+                    title: new Cesium.ConstantProperty(id),
+                    type: new Cesium.ConstantProperty('aircraft'),
+                    description: new Cesium.ConstantProperty(`Automated flight path from ${start.name} to ${end.name}. Altitude: ${Math.floor(altitude)}m.`),
+                    year: new Cesium.ConstantProperty(new Date().getFullYear()),
+                    severity: new Cesium.ConstantProperty('Low')
+                },
                 point: {
                     pixelSize: 6,
                     color: Cesium.Color.fromCssColorString('#ffffff'),
@@ -68,3 +76,5 @@ const AircraftLayer = {
         this.entities.forEach(e => e.show = show);
     }
 };
+
+window.AircraftLayer = AircraftLayer;

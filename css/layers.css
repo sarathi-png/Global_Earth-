@@ -1,9 +1,10 @@
 #legend {
     position: absolute;
-    bottom: 100px;
-    left: 20px;
+    bottom: 40px;
+    right: 20px;
     padding: 15px;
     z-index: 10;
+    max-width: 200px;
 }
 
 #legend h4 {
@@ -20,4 +21,31 @@
     gap: 10px;
     font-size: 0.85rem;
     margin-bottom: 6px;
+    color: var(--text-secondary);
+}
+
+.marker-symbol {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+.marker-symbol.disaster { background-color: var(--accent-amber); box-shadow: 0 0 5px var(--accent-amber); }
+.marker-symbol.war { background-color: var(--accent-red); box-shadow: 0 0 5px var(--accent-red); }
+.marker-symbol.mystery { background-color: var(--accent-purple); box-shadow: 0 0 5px var(--accent-purple); }
+.marker-symbol.history { background-color: var(--accent-cyan); box-shadow: 0 0 5px var(--accent-cyan); }
+.marker-symbol.aircraft { background-color: #fff; border: 1px solid var(--accent-cyan); box-shadow: 0 0 5px #fff; }
+.marker-symbol.satellite { background-color: var(--accent-cyan); border: 1px solid #fff; box-shadow: 0 0 5px var(--accent-cyan); }
+
+.marker-symbol.border-stable { 
+    background-color: rgba(0, 255, 127, 0.4); 
+    border: 1px solid rgb(0, 255, 127);
+    border-radius: 2px;
+}
+.marker-symbol.border-unstable { 
+    background-color: rgba(255, 0, 0, 0.4); 
+    border: 1px solid rgb(255, 0, 0);
+    border-radius: 2px;
 }

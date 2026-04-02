@@ -3,6 +3,8 @@ const SearchUI = {
         const input = document.getElementById('globalSearch');
         const resultsBox = document.getElementById('searchResults');
 
+        if (!input || !resultsBox) return;
+
         input.addEventListener('input', (e) => {
             const query = e.target.value;
             if (query.length < 2) {
@@ -24,6 +26,7 @@ const SearchUI = {
 
     renderResults(results) {
         const resultsBox = document.getElementById('searchResults');
+        if (!resultsBox) return;
         resultsBox.innerHTML = '';
         
         if (results.length === 0) {
@@ -32,11 +35,14 @@ const SearchUI = {
             results.forEach(item => {
                 const div = document.createElement('div');
                 div.className = 'search-result-item';
+                const safeTitle = String(item.title).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                const safeYear = String(item.year).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                const safeCountry = String(item.country).replace(/</g, '&lt;').replace(/>/g, '&gt;');
                 div.innerHTML = `
                     <div class="result-icon ${item.type}"><i class="fas ${this.getIcon(item.type)}"></i></div>
                     <div class="result-info">
-                        <div class="result-title">${item.title}</div>
-                        <div class="result-meta">${item.year} | ${item.country}</div>
+                        <div class="result-title">${safeTitle}</div>
+                        <div class="result-meta">${safeYear} | ${safeCountry}</div>
                     </div>
                 `;
                 div.addEventListener('click', () => {
@@ -60,9 +66,15 @@ const SearchUI = {
     },
 
     handleResultClick(item) {
-        CameraManager.flyTo(item.lat, item.lng, 1000000);
-        ControlManager.onClick(item.entity);
-        document.getElementById('searchResults').classList.add('hidden');
-        document.getElementById('globalSearch').value = item.title;
+        if (typeof CameraManager !== 'undefined' && CameraManager.flyTo) {
+            CameraManager.flyTo(item.lat, item.lng, 1000000);
+        }
+        if (item.entity && typeof ControlManager !== 'undefined' && ControlManager.onClick) {
+            ControlManager.onClick(item.entity);
+        }
+        const resultsBox = document.getElementById('searchResults');
+        const searchInput = document.getElementById('globalSearch');
+        if (resultsBox) resultsBox.classList.add('hidden');
+        if (searchInput) searchInput.value = item.title;
     }
 };

@@ -2,70 +2,176 @@
 document.addEventListener('DOMContentLoaded', async () => {
     console.log("Initializing Intelligence Platform...");
 
-    // 1. Initialize Engine
-    await GlobeManager.init('globeContainer');
-    CameraManager.init();
+    try {
+        await GlobeManager.init('globeContainer');
+    } catch (e) {
+        console.error("GlobeManager init failed:", e);
+    }
 
-    // 2. Initialize Managers
-    TerrainManager.init();
-    ControlManager.init();
+    try {
+        if (typeof TerrainManager !== 'undefined' && TerrainManager.init) TerrainManager.init();
+    } catch (e) {
+        console.warn("TerrainManager init failed:", e);
+    }
 
-    // 3. Initialize layers
-    await Promise.all([
-        DisastersLayer.init(),
-        WarsLayer.init(),
-        MysteryLayer.init(),
-        HistoricalLayer.init(),
-        BordersLayer.init()
-    ]);
-    
-    AircraftLayer.init();
-    SatelliteLayer.init();
-    WeatherLayer.init();
+    try {
+        if (typeof ControlManager !== 'undefined' && ControlManager.init) ControlManager.init();
+    } catch (e) {
+        console.warn("ControlManager init failed:", e);
+    }
 
-    // 4. Initialize Systems
-    SearchEngine.init();
-    SearchEngine.updateIndex();
-    SearchUI.init();
-    TimelineManager.init();
-    
-    // Phase 4 Systems
-    DrawerManager.init();
-    HoverPopup.init();
-    UIAnimations.init();
-    ClusteringManager.init();
+    const layerInitPromises = [];
+    const layerNames = ['DisastersLayer', 'WarsLayer', 'MysteryLayer', 'HistoricalLayer', 'BordersLayer'];
+    layerNames.forEach(name => {
+        if (typeof window[name] !== 'undefined' && window[name].init) {
+            layerInitPromises.push(
+                window[name].init().catch(e => console.warn(`${name} init failed:`, e))
+            );
+        }
+    });
 
-    // 5. Set Initial Camera
-    CameraManager.home();
+    await Promise.allSettled(layerInitPromises);
 
-    // 6. Global Event Listeners
-    setupUIListeners();
-
-    updateGlobalStats();
-
-    console.log("System Online");
-});
-
-function updateGlobalStats() {
-    let total = 0;
-    const layers = [DisastersLayer, WarsLayer, MysteryLayer, HistoricalLayer, BordersLayer];
-    layers.forEach(l => {
-        if (l.visible) {
-            // For borders, we don't count individual segments as markers yet
-            if (l.entities) {
-                l.entities.forEach(e => {
-                    if (e.show) total++;
-                });
+    ['AircraftLayer', 'SatelliteLayer', 'WeatherLayer'].forEach(name => {
+        if (typeof window[name] !== 'undefined' && window[name].init) {
+            try {
+                window[name].init();
+            } catch (e) {
+                console.warn(`${name} init failed:`, e);
             }
         }
     });
-    document.getElementById('activeMarkerCount').innerText = total;
+
+    try {
+        if (typeof SearchEngine !== 'undefined') {
+            SearchEngine.init();
+            SearchEngine.updateIndex();
+        }
+    } catch (e) {
+        console.warn("SearchEngine init failed:", e);
+    }
+
+    try {
+        if (typeof SearchUI !== 'undefined' && SearchUI.init) SearchUI.init();
+    } catch (e) {
+        console.warn("SearchUI init failed:", e);
+    }
+
+    try {
+        if (typeof TimelineManager !== 'undefined' && TimelineManager.init) TimelineManager.init();
+    } catch (e) {
+        console.warn("TimelineManager init failed:", e);
+    }
+
+    try {
+        if (typeof DrawerManager !== 'undefined' && DrawerManager.init) DrawerManager.init();
+    } catch (e) {
+        console.warn("DrawerManager init failed:", e);
+    }
+
+    try {
+        if (typeof HoverPopup !== 'undefined' && HoverPopup.init) HoverPopup.init();
+    } catch (e) {
+        console.warn("HoverPopup init failed:", e);
+    }
+
+    try {
+        if (typeof UIAnimations !== 'undefined' && UIAnimations.init) UIAnimations.init();
+    } catch (e) {
+        console.warn("UIAnimations init failed:", e);
+    }
+
+    try {
+        if (typeof ClusteringManager !== 'undefined' && ClusteringManager.init) ClusteringManager.init();
+    } catch (e) {
+        console.warn("ClusteringManager init failed:", e);
+    }
+
+    try {
+        if (typeof CameraManager !== 'undefined' && CameraManager.home) CameraManager.home();
+    } catch (e) {
+        console.warn("CameraManager.home failed:", e);
+    }
+
+    setupUIListeners();
+    syncAllLayerVisibility();
+    updateLegendVisibility();
+    updateGlobalStats();
+
+    console.log("System Online");
+    
+    window.DisastersLayer = DisastersLayer;
+    window.WarsLayer = WarsLayer;
+    window.SearchEngine = SearchEngine;
+    window.TimelineManager = TimelineManager;
+    window.GlobeManager = GlobeManager;
+    window.App = { status: "Online", version: "1.0.0" };
+});
+
+function updateLegendVisibility() {
+    const toggleMap = {
+        'toggleDisasters': 'disasters',
+        'toggleWars': 'wars',
+        'toggleMysteries': 'mysteries',
+        'toggleHistory': 'history',
+        'toggleAircraft': 'aircraft',
+        'toggleSat': 'sat',
+        'toggleWeather': 'weather',
+        'toggleBorders': 'borders'
+    };
+
+    Object.entries(toggleMap).forEach(([toggleId, layerClass]) => {
+        const el = document.getElementById(toggleId);
+        const legendItem = document.querySelector(`.legend-item[data-layer="${layerClass}"]`);
+        if (!el || !legendItem) return;
+
+        if (el.checked) {
+            legendItem.classList.remove('hidden-layer');
+        } else {
+            legendItem.classList.add('hidden-layer');
+        }
+    });
+}
+
+function syncAllLayerVisibility() {
+    const toggleMap = {
+        'toggleDisasters': DisastersLayer,
+        'toggleWars': WarsLayer,
+        'toggleMysteries': MysteryLayer,
+        'toggleHistory': HistoricalLayer,
+        'toggleAircraft': AircraftLayer,
+        'toggleSat': SatelliteLayer,
+        'toggleWeather': WeatherLayer,
+        'toggleBorders': BordersLayer
+    };
+
+    Object.entries(toggleMap).forEach(([toggleId, layer]) => {
+        const el = document.getElementById(toggleId);
+        if (!el || !layer) return;
+        const isChecked = el.checked;
+        layer.visible = isChecked;
+        if (layer.toggleVisibility) {
+            layer.toggleVisibility(isChecked);
+        }
+    });
+}
+
+function updateGlobalStats() {
+    let total = 0;
+    const layers = [DisastersLayer, WarsLayer, MysteryLayer, HistoricalLayer, BordersLayer, AircraftLayer, SatelliteLayer];
+    layers.forEach(l => {
+        if (!l) return;
+        if (l.visible && l.entities) {
+            l.entities.forEach(e => {
+                if (e.show) total++;
+            });
+        }
+    });
+    const badge = document.getElementById('activeMarkerCount');
+    if (badge) badge.innerText = total;
 }
 
 function setupUIListeners() {
-    // Note: Sidebar animation handled by UIAnimations.js
-    
-    // Layer Toggles
     const toggles = [
         { id: 'toggleDisasters', layer: DisastersLayer },
         { id: 'toggleWars', layer: WarsLayer },
@@ -81,17 +187,29 @@ function setupUIListeners() {
         const el = document.getElementById(t.id);
         if (el) {
             el.addEventListener('change', (e) => {
-                t.layer.toggleVisibility(e.target.checked);
-                TimelineManager.applyFilters(); // Re-apply current year filter
+                if (t.layer) {
+                    t.layer.visible = e.target.checked;
+                    if (t.layer.toggleVisibility) {
+                        t.layer.toggleVisibility(e.target.checked);
+                    }
+                    updateGlobalStats();
+                    if (window.TimelineManager && window.TimelineManager.applyFilters) {
+                        window.TimelineManager.applyFilters();
+                    }
+                    if (typeof updateLegendVisibility === 'function') {
+                        updateLegendVisibility();
+                    }
+                }
             });
         }
     });
 
-    // Year Slider
     const yearSlider = document.getElementById('yearSlider');
     const yearDisplay = document.getElementById('currentYearDisplay');
     
-    yearSlider.addEventListener('input', (e) => {
-        yearDisplay.innerText = e.target.value;
-    });
+    if (yearSlider && yearDisplay) {
+        yearSlider.addEventListener('input', (e) => {
+            yearDisplay.innerText = e.target.value;
+        });
+    }
 }

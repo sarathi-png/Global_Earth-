@@ -6,8 +6,14 @@
         width: 320px;
     }
     #timeline {
-        left: 280px;
-        right: 360px;
+        left: 260px;
+        right: 220px;
+    }
+    #legend {
+        right: 10px;
+        bottom: 120px;
+        min-width: 170px;
+        max-width: 200px;
     }
 }
 
@@ -36,6 +42,14 @@
         width: 90%;
         left: 5%;
         bottom: 20px;
+    }
+
+    #legend {
+        display: none;
+    }
+    #timeline {
+        left: 20px;
+        right: 20px;
     }
 }
 

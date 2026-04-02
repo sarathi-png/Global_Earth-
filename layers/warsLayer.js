@@ -7,6 +7,7 @@ const WarsLayer = {
             const response = await fetch('data/wars.json');
             const data = await response.json();
             this.renderMarkers(data);
+            console.log(`Wars Layer Initialized: ${data.length} markers`);
         } catch (error) {
             console.error("Error loading wars data:", error);
         }
@@ -28,11 +29,7 @@ const WarsLayer = {
         this.entities.forEach(entity => {
             entity.show = show;
         });
-        this.updateMarkerCount();
-    },
-
-    updateMarkerCount() {
-        const activeCount = document.querySelectorAll('.layer-item input:checked').length;
-        // Simple count update logic for Phase 2
     }
 };
+
+window.WarsLayer = WarsLayer;

@@ -1,0 +1,10 @@
+{
+  "name": "global-earth-offline-server",
+  "version": "0.1.0",
+  "description": "Static offline Global Earth project server",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "author": "OpenCode",
+  "license": "MIT"
+}

@@ -19,12 +19,9 @@ const GlobeManager = {
                 shouldAnimate: true
             };
 
-            // Only add world terrain if token is present
             if (CONFIG.CESIUM_TOKEN) {
                 try {
-                    viewerOptions.terrainProvider = await Cesium.CesiumTerrainProvider.fromUrl(
-                        'https://assets.ion.cesium.com/asset_depot/1/terrain/v1/'
-                    );
+                    viewerOptions.terrainProvider = await Cesium.CesiumTerrainProvider.fromIonAssetId(1);
                 } catch (e) {
                     console.warn("Terrain failed, falling back to ellipsoid.");
                 }
@@ -35,36 +32,42 @@ const GlobeManager = {
             const scene = this.viewer.scene;
             const globe = scene.globe;
 
-            // Premium Visuals
-            globe.enableLighting = CONFIG.GLOBE_SETTINGS.enableLighting;
-            globe.showGroundAtmosphere = CONFIG.GLOBE_SETTINGS.enableAtmosphere;
             globe.baseColor = Cesium.Color.fromCssColorString(CONFIG.GLOBE_SETTINGS.baseColor);
+            globe.showGroundAtmosphere = CONFIG.GLOBE_SETTINGS.enableAtmosphere;
+
+            if ('enableLighting' in globe) {
+                try {
+                    globe.enableLighting = CONFIG.GLOBE_SETTINGS.enableLighting;
+                } catch (e) {
+                    console.warn("globe.enableLighting not supported in this Cesium version, skipping.");
+                }
+            }
 
             scene.skyAtmosphere.show = true;
             scene.fog.enabled = true;
             scene.fog.density = 0.0001;
 
-            // Imagery Setup
+            scene.renderError.addEventListener((scene, error) => {
+                console.warn("Cesium render error caught:", error);
+            });
+
             if (CONFIG.CESIUM_TOKEN) {
                 try {
                     this.viewer.imageryLayers.removeAll();
                     this.viewer.imageryLayers.addImageryProvider(
-                        await Cesium.IonImageryProvider.fromAssetId(3812) // Blue Marble
+                        await Cesium.IonImageryProvider.fromAssetId(3)
                     );
                 } catch (e) {
                     console.warn("Ion Imagery failed, using default.");
-                    this.setupFallbackImagery();
+                    await this.setupFallbackImagery();
                 }
             } else {
                 console.log("No Cesium Token; using OpenStreetMap fallback.");
-                this.setupFallbackImagery();
+                await this.setupFallbackImagery();
             }
-            
+
+            this.initFrustumCulling();
             console.log("Cesium Globe Initialized");
-            
-            // Explicitly set base color again to ensure it's applied if no imagery
-            globe.baseColor = Cesium.Color.fromCssColorString(CONFIG.GLOBE_SETTINGS.baseColor);
-            
             return this.viewer;
         } catch (error) {
             console.error("Error initializing Cesium Globe:", error);
@@ -86,13 +89,92 @@ const GlobeManager = {
         }
     },
 
-    setupFallbackImagery() {
+    initFrustumCulling() {
+        if (!this.viewer) return;
+
+        const scene = this.viewer.scene;
+        const camera = this.viewer.camera;
+        const canvas = scene.canvas;
+
+        let lastUpdate = 0;
+        const UPDATE_INTERVAL = 200;
+
+        scene.preRender.addEventListener(() => {
+            try {
+                const now = Date.now();
+                if (now - lastUpdate < UPDATE_INTERVAL) return;
+                lastUpdate = now;
+
+                const camPos = camera.position;
+                const camDir = Cesium.Cartesian3.normalize(camera.direction, new Cesium.Cartesian3());
+                const W = canvas.clientWidth;
+                const H = canvas.clientHeight;
+
+                const allLayers = [
+                    window.DisastersLayer,
+                    window.WarsLayer,
+                    window.MysteryLayer,
+                    window.HistoricalLayer,
+                    window.AircraftLayer,
+                    window.SatelliteLayer
+                ];
+
+                allLayers.forEach(layer => {
+                    if (!layer || !layer.entities) return;
+
+                    layer.entities.forEach(entity => {
+                        if (!entity.position || !entity.point || !entity.label) return;
+
+                        const worldPos = entity.position.getValue(scene.clock.currentTime);
+                        if (!worldPos) return;
+
+                        const toPoint = Cesium.Cartesian3.subtract(worldPos, camPos, new Cesium.Cartesian3());
+                        const dist = Cesium.Cartesian3.magnitude(toPoint);
+                        if (dist < 1) return;
+
+                        const toPointNorm = Cesium.Cartesian3.divideByScalar(toPoint, dist, new Cesium.Cartesian3());
+                        const dot = Cesium.Cartesian3.dot(camDir, toPointNorm);
+
+                        if (dot < 0.1) {
+                            entity.label.show = false;
+                            entity.point.show = false;
+                            return;
+                        }
+
+                        try {
+                            const screenPos = Cesium.SceneTransforms.wgs84ToWindowCoordinates(scene, worldPos);
+                            if (!screenPos ||
+                                screenPos.x < -100 || screenPos.x > W + 100 ||
+                                screenPos.y < -100 || screenPos.y > H + 100) {
+                                entity.label.show = false;
+                                entity.point.show = false;
+                                return;
+                            }
+                        } catch (e) {
+                            entity.label.show = false;
+                            entity.point.show = false;
+                            return;
+                        }
+
+                        entity.point.show = true;
+                        entity.label.show = true;
+                    });
+                });
+            } catch (e) {
+                // Silently ignore frustum culling errors to prevent render crashes
+            }
+        });
+    },
+
+    async setupFallbackImagery() {
         this.viewer.imageryLayers.removeAll();
-        // Use OpenStreetMap for a functional globe without a token
-        this.viewer.imageryLayers.addImageryProvider(
-            new Cesium.OpenStreetMapImageryProvider({
-                url : 'https://a.tile.openstreetmap.org/'
-            })
-        );
+        try {
+            const osmProvider = await Cesium.OpenStreetMapImageryProvider.fromUrl(
+                'https://a.tile.openstreetmap.org/'
+            );
+            this.viewer.imageryLayers.addImageryProvider(osmProvider);
+        } catch (e) {
+            console.warn("OSM fallback imagery also failed.", e);
+        }
     }
 };

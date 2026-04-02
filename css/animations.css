@@ -8,12 +8,52 @@
     animation: pulse-cyan 2s infinite;
 }
 
+/* Tactical Legend - Right Side Fixed */
+#legend {
+    position: fixed;
+    right: 20px;
+    bottom: 130px;
+    min-width: 200px;
+    max-width: 240px;
+    z-index: 10;
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+#legend h4 {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 6px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--panel-border);
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 5px 0;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    transition: opacity 0.3s ease;
+}
+
+.legend-item.hidden-layer {
+    opacity: 0.25;
+    pointer-events: none;
+}
+
 /* Marker Symbols for Legend */
 .marker-symbol {
     width: 12px;
     height: 12px;
     border-radius: 50%;
     display: inline-block;
+    flex-shrink: 0;
 }
 
 .marker-symbol.disaster {
@@ -31,4 +71,33 @@
     background: var(--accent-purple);
     box-shadow: 0 0 10px var(--accent-purple);
     clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+}
+
+.marker-symbol.history {
+    background: var(--accent-cyan);
+    box-shadow: 0 0 10px var(--accent-cyan);
+}
+
+.marker-symbol.aircraft {
+    background: #00d4ff;
+    box-shadow: 0 0 10px #00d4ff;
+    clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
+}
+
+.marker-symbol.satellite {
+    background: #ff9500;
+    box-shadow: 0 0 10px #ff9500;
+    width: 10px;
+    height: 10px;
+}
+
+.marker-symbol.weather {
+    background: rgba(255, 255, 255, 0.8);
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
+}
+
+.marker-symbol.border-stable {
+    background: transparent;
+    border: 2px solid #00ff88;
+    box-shadow: 0 0 6px rgba(0, 255, 136, 0.4);
 }

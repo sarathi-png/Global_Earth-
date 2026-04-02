@@ -7,6 +7,7 @@ const HistoricalLayer = {
             const response = await fetch('data/historical-events.json');
             const data = await response.json();
             this.renderMarkers(data);
+            console.log(`Historical Layer Initialized: ${data.length} markers`);
         } catch (error) {
             console.error("Error loading historical data:", error);
         }
@@ -14,7 +15,7 @@ const HistoricalLayer = {
 
     renderMarkers(data) {
         if (!GlobeManager.viewer) return;
-        const color = '#00f2ff';
+        const color = CONFIG.LAYERS.historical ? CONFIG.LAYERS.historical.color : '#00f2ff';
 
         data.forEach(item => {
             const entity = MarkerFactory.createPoint(item, color);
@@ -30,3 +31,6 @@ const HistoricalLayer = {
         });
     }
 };
+
+window.HistoricalLayer = HistoricalLayer;
+

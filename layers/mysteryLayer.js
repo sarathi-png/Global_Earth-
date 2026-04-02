@@ -7,6 +7,7 @@ const MysteryLayer = {
             const response = await fetch('data/mysteries.json');
             const data = await response.json();
             this.renderMarkers(data);
+            console.log(`Mysteries Layer Initialized: ${data.length} markers`);
         } catch (error) {
             console.error("Error loading mysteries data:", error);
         }
@@ -14,7 +15,7 @@ const MysteryLayer = {
 
     renderMarkers(data) {
         if (!GlobeManager.viewer) return;
-        const color = '#bf5af2';
+        const color = CONFIG.LAYERS.mysteries ? CONFIG.LAYERS.mysteries.color : '#bf5af2';
 
         data.forEach(item => {
             const entity = MarkerFactory.createPoint(item, color);
@@ -30,3 +31,6 @@ const MysteryLayer = {
         });
     }
 };
+
+window.MysteryLayer = MysteryLayer;
+
