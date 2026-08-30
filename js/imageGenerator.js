@@ -32,7 +32,7 @@ const IncidentImageGenerator = {
         history: {
             icon: 'fa-history',
             bg: '#001a1a',
-            accent: '#00f2ff',
+            accent: '#fc3d21',
             text: 'MAJOR HISTORICAL EVENT'
         },
         aircraft: {
@@ -50,7 +50,7 @@ const IncidentImageGenerator = {
         default: {
             icon: 'fa-globe',
             bg: '#0a0a1a',
-            accent: '#00f2ff',
+            accent: '#fc3d21',
             text: 'INTELLIGENCE REPORT'
         }
     },

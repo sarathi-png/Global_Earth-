@@ -8,28 +8,24 @@ const GlobeManager = {
                 baseLayerPicker: false,
                 fullscreenButton: false,
                 geocoder: false,
-                homeButton: false,
+                homeButton: true,
                 infoBox: false,
                 sceneModePicker: false,
                 selectionIndicator: false,
                 timeline: false,
-                navigationHelpButton: false,
+                navigationHelpButton: true,
                 navigationInstructionsInitiallyVisible: false,
                 scene3DOnly: true,
                 shouldAnimate: true
             };
 
-            if (CONFIG.CESIUM_TOKEN && navigator.onLine) {
-                try {
-                    viewerOptions.terrainProvider = await Cesium.CesiumTerrainProvider.fromIonAssetId(1);
-                } catch (e) {
-                    console.warn("Terrain failed, falling back to ellipsoid.");
-                }
-            } else {
-                console.log("Offline mode: using ellipsoid terrain.");
-            }
-
             this.viewer = new Cesium.Viewer(containerId, viewerOptions);
+
+            if (CONFIG.CESIUM_TOKEN && navigator.onLine) {
+                Cesium.CesiumTerrainProvider.fromIonAssetId(1).then(terrain => {
+                    this.viewer.terrainProvider = terrain;
+                }).catch(() => console.warn("Terrain failed, using ellipsoid."));
+            }
 
             const scene = this.viewer.scene;
             const globe = scene.globe;
@@ -54,18 +50,16 @@ const GlobeManager = {
             });
 
             if (CONFIG.CESIUM_TOKEN && navigator.onLine) {
-                try {
+                Cesium.IonImageryProvider.fromAssetId(3).then(provider => {
                     this.viewer.imageryLayers.removeAll();
-                    this.viewer.imageryLayers.addImageryProvider(
-                        await Cesium.IonImageryProvider.fromAssetId(3)
-                    );
-                } catch (e) {
+                    this.viewer.imageryLayers.addImageryProvider(provider);
+                }).catch(() => {
                     console.warn("Ion Imagery failed, using local texture.");
-                    await this.setupLocalImagery();
-                }
+                    this.setupLocalImagery();
+                });
             } else {
                 console.log("Offline mode: using bundled texture imagery.");
-                await this.setupLocalImagery();
+                this.setupLocalImagery();
             }
 
             this.initFrustumCulling();
@@ -83,12 +77,46 @@ const GlobeManager = {
                         <ul style="text-align: left; display: inline-block; margin-top: 15px; color: #aaa;">
                             <li>Check your internet connection</li>
                             <li>Ensure CesiumJS script is loaded</li>
-                            <li>Add a valid CESIUM_TOKEN in <code style="color: #00f2ff;">js/config.js</code></li>
+                            <li>Add a valid CESIUM_TOKEN in <code style="color: #fc3d21;">js/config.js</code></li>
                         </ul>
                     </div>
                 `;
             }
         }
+    },
+
+    async addGIBSLayer(type) {
+        if (!this.viewer) return;
+        try {
+            const gibsUrl = 'https://gibs.earthdata.nasa.gov/wmts/epsg4326/best/' + type + '/default/2024-01-01/250m/{z}/{y}/{x}.png';
+            const provider = await Cesium.UrlTemplateImageryProvider.fromUrl(gibsUrl, {
+                maximumLevel: 8,
+                credit: 'NASA GIBS'
+            });
+            const layer = this.viewer.imageryLayers.addImageryProvider(provider);
+            layer.alpha = 0.5;
+            return layer;
+        } catch (e) {
+            console.warn('GIBS layer failed:', e.message);
+            return null;
+        }
+    },
+
+    _cullingReset() {
+        const allLayers = [
+            window.DisastersLayer, window.WarsLayer, window.MysteryLayer,
+            window.HistoricalLayer, window.AircraftLayer, window.SatelliteLayer,
+            window.WeatherLayer, window.LiveLayer, window.BordersLayer
+        ];
+        allLayers.forEach(layer => {
+            if (!layer || !layer.entities) return;
+            layer.entities.forEach(entity => {
+                if (!layer.visible) { entity.show = false; return; }
+                entity.show = true;
+            });
+            if (layer.dataSource) layer.dataSource.show = layer.visible;
+        });
+        this._lastCullUpdate = 0;
     },
 
     initFrustumCulling() {
@@ -101,19 +129,24 @@ const GlobeManager = {
         let lastUpdate = 0;
         let lastCamPos = null;
         let lastCamDir = null;
-        const UPDATE_INTERVAL = 500;
-        const MAX_IDLE_INTERVAL = 1000;
-        const LABEL_MAX_DISTANCE = 10000000;
+        const UPDATE_INTERVAL = 300;
+        const MAX_IDLE_INTERVAL = 600;
+        const LABEL_MAX_DISTANCE = 8000000;
+        const MIN_DOT_THRESHOLD = 0.0;
         const occluder = new Cesium.EllipsoidalOccluder(Cesium.Ellipsoid.WGS84, Cesium.Cartesian3.ZERO);
 
-        scene.preRender.addEventListener(() => {
+        const scratchTo = new Cesium.Cartesian3();
+        const scratchNorm = new Cesium.Cartesian3();
+        const scratchCamDir = new Cesium.Cartesian3();
+
+        this._cullingUpdate = () => {
             try {
                 const now = Date.now();
                 const camPos = camera.position;
                 const camDir = camera.direction;
 
                 const cameraMoved = !lastCamPos ||
-                    !Cesium.Cartesian3.equalsEpsilon(camPos, lastCamPos, 1000) ||
+                    !Cesium.Cartesian3.equalsEpsilon(camPos, lastCamPos, 500) ||
                     !Cesium.Cartesian3.equalsEpsilon(camDir, lastCamDir, 1e-6);
 
                 if (!cameraMoved && now - lastUpdate < MAX_IDLE_INTERVAL) return;
@@ -122,72 +155,80 @@ const GlobeManager = {
                 lastCamPos = Cesium.Cartesian3.clone(camPos);
                 lastCamDir = Cesium.Cartesian3.clone(camDir);
 
-                const camDirNorm = Cesium.Cartesian3.normalize(camDir, new Cesium.Cartesian3());
+                const camDirNorm = Cesium.Cartesian3.normalize(camDir, scratchCamDir);
                 const W = canvas.clientWidth;
                 const H = canvas.clientHeight;
                 occluder.cameraPosition = camPos;
 
                 const allLayers = [
-                    window.DisastersLayer,
-                    window.WarsLayer,
-                    window.MysteryLayer,
-                    window.HistoricalLayer,
-                    window.AircraftLayer,
-                    window.SatelliteLayer,
-                    window.LiveLayer
+                    window.DisastersLayer, window.WarsLayer, window.MysteryLayer,
+                    window.HistoricalLayer, window.AircraftLayer, window.SatelliteLayer,
+                    window.WeatherLayer, window.LiveLayer, window.BordersLayer
                 ];
 
                 allLayers.forEach(layer => {
                     if (!layer || !layer.entities || !layer.visible) return;
 
                     layer.entities.forEach(entity => {
-                        if (!entity.position || !entity.point || !entity.label) return;
-
-                        const worldPos = entity.position.getValue(scene.clock.currentTime);
-                        if (!worldPos) return;
-
-                        const toPoint = Cesium.Cartesian3.subtract(worldPos, camPos, new Cesium.Cartesian3());
-                        const dist = Cesium.Cartesian3.magnitude(toPoint);
-                        if (dist < 1) return;
-
-                        const toPointNorm = Cesium.Cartesian3.divideByScalar(toPoint, dist, new Cesium.Cartesian3());
-                        const dot = Cesium.Cartesian3.dot(camDirNorm, toPointNorm);
-
-                        if (dot < 0.1) {
-                            entity.label.show = false;
-                            entity.point.show = false;
-                            return;
-                        }
-
-                        if (occluder.isPointVisible(worldPos) === false) {
-                            entity.label.show = false;
-                            entity.point.show = false;
-                            return;
-                        }
-
                         try {
-                            const screenPos = Cesium.SceneTransforms.wgs84ToWindowCoordinates(scene, worldPos);
-                            if (!screenPos ||
-                                screenPos.x < -100 || screenPos.x > W + 100 ||
-                                screenPos.y < -100 || screenPos.y > H + 100) {
-                                entity.label.show = false;
-                                entity.point.show = false;
+                            if (!entity.position || (!entity.point && !entity.billboard)) return;
+
+                            const worldPos = entity.position.getValue(scene.clock.currentTime);
+                            if (!worldPos) return;
+
+                            Cesium.Cartesian3.subtract(worldPos, camPos, scratchTo);
+                            const dist = Cesium.Cartesian3.magnitude(scratchTo);
+                            if (dist < 1) return;
+
+                            Cesium.Cartesian3.divideByScalar(scratchTo, dist, scratchNorm);
+                            const dot = Cesium.Cartesian3.dot(camDirNorm, scratchNorm);
+
+                            if (dot < MIN_DOT_THRESHOLD) {
+                                entity.show = false;
                                 return;
                             }
-                        } catch (e) {
-                            entity.label.show = false;
-                            entity.point.show = false;
-                            return;
-                        }
 
-                        entity.point.show = true;
-                        entity.label.show = dist < LABEL_MAX_DISTANCE;
+                            if (occluder.isPointVisible(worldPos) === false) {
+                                entity.show = false;
+                                return;
+                            }
+
+                            try {
+                                const screenPos = Cesium.SceneTransforms.wgs84ToWindowCoordinates(scene, worldPos);
+                                if (!screenPos ||
+                                    screenPos.x < -150 || screenPos.x > W + 150 ||
+                                    screenPos.y < -150 || screenPos.y > H + 150) {
+                                    entity.show = false;
+                                    return;
+                                }
+                            } catch (e) {
+                                entity.show = false;
+                                return;
+                            }
+
+                            entity.show = true;
+
+                            if (entity.label) {
+                                if (dist > LABEL_MAX_DISTANCE) {
+                                    entity.label.show = false;
+                                } else {
+                                    const fadeStart = LABEL_MAX_DISTANCE * 0.6;
+                                    if (dist > fadeStart) {
+                                        const alpha = 1 - ((dist - fadeStart) / (LABEL_MAX_DISTANCE - fadeStart));
+                                        entity.label.translucency = Math.max(0.1, alpha);
+                                    } else {
+                                        entity.label.translucency = 1.0;
+                                    }
+                                    entity.label.show = true;
+                                }
+                            }
+                        } catch (e) { /* skip bad entity */ }
                     });
                 });
-            } catch (e) {
-                // Silently ignore frustum culling errors to prevent render crashes
-            }
-        });
+            } catch (e) { /* silently ignore */ }
+        };
+
+        scene.preRender.addEventListener(this._cullingUpdate);
     },
 
     async setupLocalImagery() {

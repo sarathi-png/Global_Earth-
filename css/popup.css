@@ -1,13 +1,14 @@
 #rightDrawer {
     position: absolute;
-    top: 100px;
+    top: 20px;
     right: 20px;
-    bottom: 110px;
-    width: 380px;
+    bottom: 20px;
+    width: min(28rem, calc(100vw - 22rem));
     z-index: 10;
-    padding: 24px;
-    transform: translateX(420px);
-    transition: transform 0.5s cubic-bezier(0.19, 1, 0.22, 1);
+    padding: 20px;
+    transform: translateX(calc(100% + 40px));
+    transition: transform 0.3s cubic-bezier(0, 0, 0.2, 1);
+    overflow-y: auto;
 }
 
 #rightDrawer.open {
@@ -15,61 +16,69 @@
 }
 
 .drawer-header {
-    margin-bottom: 24px;
+    margin-bottom: 20px;
     border-bottom: 1px solid var(--panel-border);
-    padding-bottom: 16px;
+    padding-bottom: 12px;
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
 }
 
 #drawerTitle {
-    font-size: 1.5rem;
-    color: var(--accent-cyan);
+    font-size: 1.25rem;
+    color: var(--text-primary);
+    font-weight: 600;
+    letter-spacing: 0.02em;
 }
 
 .badge {
-    padding: 4px 8px;
+    padding: 3px 8px;
     border-radius: 4px;
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     text-transform: uppercase;
-    background: rgba(0, 242, 255, 0.1);
-    color: var(--accent-cyan);
-    border: 1px solid rgba(0, 242, 255, 0.3);
+    letter-spacing: 0.16em;
+    font-weight: 500;
+    background: rgba(252, 61, 33, 0.15);
+    color: var(--accent-primary);
+    border: 1px solid rgba(252, 61, 33, 0.3);
 }
 
 .media-placeholder {
     width: 100%;
     aspect-ratio: 16 / 9;
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px dashed var(--panel-border);
     border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 2rem;
+    font-size: 1.5rem;
     color: var(--text-secondary);
-    margin-bottom: 20px;
+    margin-bottom: 16px;
 }
 
 #drawerImage {
     width: 100%;
     aspect-ratio: 16 / 9;
     border-radius: 8px;
-    margin-bottom: 20px;
+    margin-bottom: 16px;
     object-fit: cover;
     border: 1px solid var(--panel-border);
     cursor: zoom-in;
 }
 
-#drawerImagePlaceholder {
-    margin-bottom: 20px;
+.drawer-body p {
+    font-size: 0.85rem;
+    line-height: 1.6;
+    color: var(--text-secondary);
+    margin-bottom: 16px;
 }
 
 .metadata-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 16px;
-    margin-top: 24px;
+    gap: 12px;
+    margin-top: 16px;
 }
 
 .meta-item {
@@ -79,19 +88,35 @@
 }
 
 .meta-label {
-    font-size: 0.75rem;
+    font-size: 0.65rem;
     text-transform: uppercase;
+    letter-spacing: 0.16em;
     color: var(--text-secondary);
+    font-weight: 500;
 }
 
 .meta-value {
     font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text-primary);
 }
 
 .close-btn {
     position: absolute;
-    top: 10px;
-    right: 15px;
-    font-size: 1.5rem;
+    top: 12px;
+    right: 12px;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
     color: var(--text-secondary);
+    border-radius: 4px;
+    transition: all var(--transition-default);
+}
+
+.close-btn:hover {
+    color: var(--accent-primary);
+    background: rgba(252, 61, 33, 0.1);
 }

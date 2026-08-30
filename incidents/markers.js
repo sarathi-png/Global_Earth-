@@ -13,8 +13,7 @@ const MarkerFactory = {
                 pixelSize: pixelSize,
                 color: markerColor,
                 outlineColor: Cesium.Color.WHITE,
-                outlineWidth: 2,
-                disableDepthTestDistance: Number.POSITIVE_INFINITY
+                outlineWidth: 2
             },
             label: {
                 text: item.title,
@@ -26,7 +25,6 @@ const MarkerFactory = {
                 pixelOffset: new Cesium.Cartesian2(0, -25),
                 horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
                 verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-                disableDepthTestDistance: Number.POSITIVE_INFINITY,
                 translucencyByDistance: new Cesium.NearFarScalar(2000000, 1.0, 15000000, 0.0),
                 show: true
             },
@@ -39,7 +37,8 @@ const MarkerFactory = {
                 severity: item.severity,
                 lat: item.lat,
                 lng: item.lng,
-                source: item.source || 'Intelligence Report'
+                source: item.source || 'Intelligence Report',
+                wikiQuery: item.wikiQuery || null
             }
         });
 

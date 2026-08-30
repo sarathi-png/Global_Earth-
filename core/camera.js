@@ -9,6 +9,22 @@ const CameraManager = {
         });
     },
 
+    flyToIncident(lat, lng) {
+        if (!GlobeManager.viewer) return;
+        const height = (CONFIG.CAMERA && CONFIG.CAMERA.incidentZoom) || 120000;
+
+        GlobeManager.viewer.camera.flyTo({
+            destination: Cesium.Cartesian3.fromDegrees(lng, lat, height),
+            orientation: {
+                heading: 0,
+                pitch: Cesium.Math.toRadians(-35),
+                roll: 0
+            },
+            duration: 2.5,
+            easingFunction: Cesium.EasingFunction.CUBIC_IN_OUT
+        });
+    },
+
     home() {
         this.flyTo(
             CONFIG.CAMERA_DEFAULTS.destination.lat,

@@ -5,30 +5,35 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Global 3D Intelligence Platform</title>
     
+    <meta name="description" content="3D globe intelligence platform with real-time disaster, weather, aircraft, and satellite data">
+    <meta name="theme-color" content="#fc3d21">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/svg+xml" href="assets/icons/icon-192.svg">
+    
     <!-- CesiumJS (local - full bundle with Workers/Assets/ThirdParty) -->
     <script>window.CESIUM_BASE_URL = 'vendor/cesium/';</script>
-    <script src="vendor/cesium/Cesium.js"></script>
-    <link href="vendor/cesium/Widgets/widgets.css" rel="stylesheet">
+    <script src="vendor/cesium/Cesium.js?v=2.1"></script>
+    <link href="vendor/cesium/Widgets/widgets.css?v=2.1" rel="stylesheet">
     
     <!-- GSAP -->
-    <script src="vendor/gsap/gsap.min.js"></script>
+    <script src="vendor/gsap/gsap.min.js?v=2.1"></script>
     
     <!-- Font Awesome (local) -->
-    <link rel="stylesheet" href="vendor/fontawesome/css/all.min.css">
+    <link rel="stylesheet" href="vendor/fontawesome/css/all.min.css?v=2.1">
 
     <!-- Global Fonts (local) -->
-    <link rel="stylesheet" href="css/fonts.css">
+    <link rel="stylesheet" href="css/fonts.css?v=2.1">
 
     <!-- CSS -->
-    <link rel="stylesheet" href="css/main.css">
-    <link rel="stylesheet" href="css/globe.css">
-    <link rel="stylesheet" href="css/sidebar.css">
-    <link rel="stylesheet" href="css/popup.css">
-    <link rel="stylesheet" href="css/timeline.css">
-    <link rel="stylesheet" href="css/search.css">
-    <link rel="stylesheet" href="css/layers.css">
-    <link rel="stylesheet" href="css/animations.css">
-    <link rel="stylesheet" href="css/responsive.css">
+    <link rel="stylesheet" href="css/main.css?v=2.1">
+    <link rel="stylesheet" href="css/globe.css?v=2.1">
+    <link rel="stylesheet" href="css/sidebar.css?v=2.1">
+    <link rel="stylesheet" href="css/popup.css?v=2.1">
+    <link rel="stylesheet" href="css/timeline.css?v=2.1">
+    <link rel="stylesheet" href="css/search.css?v=2.1">
+    <link rel="stylesheet" href="css/layers.css?v=2.1">
+    <link rel="stylesheet" href="css/animations.css?v=2.1">
+    <link rel="stylesheet" href="css/responsive.css?v=2.1">`n    <link rel="stylesheet" href="css/notifications.css?v=2.1">
 </head>
 <body>
     <div id="appContainer">
@@ -119,6 +124,34 @@
                     </label>
                     <span><i class="fas fa-broadcast-tower"></i> Live Events</span>
                 </div>
+                <div class="layer-item" data-layer="gibs">
+                    <label class="switch">
+                        <input type="checkbox" id="toggleGIBS">
+                        <span class="slider round"></span>
+                    </label>
+                    <span><i class="fas fa-snowflake"></i> GIBS Satellite</span>
+                </div>
+                <div class="layer-item" data-layer="heatmap">
+                    <label class="switch">
+                        <input type="checkbox" id="toggleHeatmap">
+                        <span class="slider round"></span>
+                    </label>
+                    <span><i class="fas fa-fire-flame-curved"></i> Event Heatmap</span>
+                </div>
+                <div class="layer-item" data-layer="ripple">
+                    <label class="switch">
+                        <input type="checkbox" id="toggleRipple">
+                        <span class="slider round"></span>
+                    </label>
+                    <span><i class="fas fa-bullseye"></i> Ripple Rings & Arcs</span>
+                </div>
+                <div class="layer-item" data-layer="daynight">
+                    <label class="switch">
+                        <input type="checkbox" id="toggleDayNight">
+                        <span class="slider round"></span>
+                    </label>
+                    <span><i class="fas fa-moon"></i> Day/Night Terminator</span>
+                </div>
             </div>
             
             <div class="status-indicators">
@@ -135,6 +168,7 @@
                     <span id="liveDataStatus" class="value offline">Offline</span>
                 </div>
             </div>
+            <div id="liveStats"></div>
         </aside>
 
         <!-- Right Incident Drawer -->
@@ -175,6 +209,7 @@
                 </div>
             </div>
         </div>
+        </button>
 
         <!-- Floating Legend -->
         <div id="legend" class="glass-panel">
@@ -215,6 +250,18 @@
                 <span class="marker-symbol live"></span>
                 <span>Live Event (NASA/USGS)</span>
             </div>
+            <div class="legend-item" data-layer="gibs">
+                <span class="marker-symbol weather"></span>
+                <span>GIBS Satellite Imagery</span>
+            </div>
+            <div class="legend-item" data-layer="heatmap">
+                <span class="marker-symbol" style="background: radial-gradient(circle, rgba(255,149,0,0.6) 0%, transparent 70%); border-radius: 50%;"></span>
+                <span>Event Density Heatmap</span>
+            </div>
+            <div class="legend-item" data-layer="ripple">
+                <span class="marker-symbol" style="background: radial-gradient(circle, rgba(255,59,48,0.4) 0%, transparent 70%); border-radius: 50%; border: 1px solid rgba(255,59,48,0.5);"></span>
+                <span>Ripple Rings (Critical Events)</span>
+            </div>
         </div>
 
         <!-- Custom Hover Popup -->
@@ -230,64 +277,80 @@
                 <div id="modalBody"></div>
             </div>
         </div>
+
     </div>
 
+    <!-- Home / Reset View Button -->
+    <button id="homeBtn" class="home-btn glass-panel" title="Reset view to default">
+        <i class="fas fa-home"></i>
+    </button>
+
+    <!-- Random Event Button -->
+    <button id="randomBtn" class="random-btn glass-panel" title="Jump to random event">
+        <i class="fas fa-random"></i>
+    </button>
+
     <!-- JS Configuration -->
-    <script src="js/config.js"></script>
+    <script src="js/config.js?v=2.1"></script>
 
     <!-- Core Logic -->
-    <script src="core/globe.js"></script>
-    <script src="core/camera.js"></script>
-    <script src="core/terrain.js"></script>
-    <script src="core/controls.js"></script>
+    <script src="core/globe.js?v=2.1" defer></script>
+    <script src="core/camera.js?v=2.1" defer></script>
+    <script src="core/terrain.js?v=2.1" defer></script>
+    <script src="core/controls.js?v=2.1" defer></script>
 
     <!-- Animations -->
-    <script src="animations/markerPulse.js"></script>
+    <script src="animations/markerPulse.js?v=2.1" defer></script>
 
     <!-- Incidents -->
-    <script src="incidents/markers.js"></script>
+    <script src="incidents/markers.js?v=2.1" defer></script>
 
     <!-- Layers -->
-    <script src="layers/disastersLayer.js"></script>
-    <script src="layers/warsLayer.js"></script>
-    <script src="layers/mysteryLayer.js"></script>
-    <script src="layers/historicalLayer.js"></script>
-    <script src="layers/aircraftLayer.js"></script>
-    <script src="layers/satelliteLayer.js"></script>
-    <script src="layers/weatherLayer.js"></script>
-    <script src="layers/bordersLayer.js"></script>
+    <script src="layers/disastersLayer.js?v=2.1" defer></script>
+    <script src="layers/warsLayer.js?v=2.1" defer></script>
+    <script src="layers/mysteryLayer.js?v=2.1" defer></script>
+    <script src="layers/historicalLayer.js?v=2.1" defer></script>
+    <script src="layers/aircraftLayer.js?v=2.1" defer></script>
+    <script src="layers/satelliteLayer.js?v=2.1" defer></script>
+    <script src="layers/weatherLayer.js?v=2.1" defer></script>
+    <script src="layers/bordersLayer.js?v=2.1" defer></script>
 
     <!-- Live Data -->
-    <script src="js/liveApi.js"></script>
-    <script src="layers/liveLayer.js"></script>
+    <script src="js/liveApi.js?v=2.1" defer></script>
+    <script src="js/statsDashboard.js?v=2.1" defer></script>`n    <script src="layers/dayNightLayer.js?v=2.1" defer></script>`n    <script src="layers/heatmapLayer.js?v=2.1" defer></script>`n    <script src="layers/rippleArcLayer.js?v=2.1" defer></script>`n    <script src="layers/liveLayer.js?v=2.1" defer></script>
 
     <!-- Search -->
-    <script src="search/searchEngine.js"></script>
-    <script src="search/searchUI.js"></script>
+    <script src="search/searchEngine.js?v=2.1" defer></script>
+    <script src="search/searchUI.js?v=2.1" defer></script>
 
     <!-- Timeline -->
-    <script src="timeline/filters.js"></script>
-    <script src="timeline/timeline.js"></script>
+    <script src="timeline/filters.js?v=2.1" defer></script>
+    <script src="timeline/timeline.js?v=2.1" defer></script>
 
     <!-- Debugging Diagnostics -->
-    <script src="js/debugger.js"></script>
+    <script src="js/debugger.js?v=2.1" defer></script>
 
     <!-- UI & Interactivity -->
-    <script src="ui/drawer.js"></script>
-    <script src="incidents/hoverPopup.js"></script>
-    <script src="incidents/clustering.js"></script>
-    <script src="animations/uiAnimations.js"></script>
+    <script src="ui/drawer.js?v=2.1" defer></script>
+    <script src="incidents/hoverPopup.js?v=2.1" defer></script>
+    <script src="incidents/clustering.js?v=2.1" defer></script>
+    <script src="animations/uiAnimations.js?v=2.1" defer></script>
 
     <!-- Cesium Load Fallback -->
-    <script src="js/fallback.js"></script>
+    <script src="js/fallback.js?v=2.1" defer></script>
 
     <!-- Image Generator -->
-    <script src="js/imageGenerator.js"></script>
+    <script src="js/imageGenerator.js?v=2.1" defer></script>
 
     <!-- Wikipedia Image Lookup -->
-    <script src="js/wikipediaImage.js"></script>
+    <script src="js/wikipediaImage.js?v=2.1" defer></script>
 
-    <!-- App Bootstrapper -->
-    <script src="js/app.js"></script>
+    <!-- Toast Notifications -->`n    <div id="toastContainer"></div>`n`n    <!-- Event Feed Panel -->`n    <div id="eventFeed">`n        <button id="feedToggle"><i class="fas fa-bell"></i><span id="feedBadge" class="feed-badge"></span></button>`n        <div class="feed-panel" id="feedPanel">`n            <div class="feed-header"><h3>Live Event Feed <span id="feedCount" class="feed-count"></span></h3></div>`n            <div class="feed-body" id="eventFeedList"></div>`n        </div>`n    </div>`n`n    <!-- App Bootstrapper -->
+    <script src="js/app.js?v=2.1" defer></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
+      }
+    </script>
 </body>
 </html>

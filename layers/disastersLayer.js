@@ -3,6 +3,7 @@ const DisastersLayer = {
     visible: false,
 
     async init() {
+        if (!this.visible) return;
         console.log("DisastersLayer: init started");
         try {
             const response = await fetch('data/disasters.json');
@@ -39,6 +40,10 @@ const DisastersLayer = {
 
     toggleVisibility(show) {
         this.visible = show;
+        if (show && this.entities.length === 0 && !this._initialized) {
+            this._initialized = true;
+            this.init();
+        }
         this.entities.forEach(entity => {
             entity.show = show;
         });

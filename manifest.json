@@ -1,0 +1,23 @@
+{
+  "name": "Global Earth - GEO-INTEL Platform",
+  "short_name": "GEO-INTEL",
+  "description": "3D globe intelligence platform with real-time disaster, weather, aircraft, and satellite data",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a1a",
+  "theme_color": "#fc3d21",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "assets/icons/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "assets/icons/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ],
+  "categories": ["utilities", "education"]
+}

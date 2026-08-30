@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192">
+  <circle cx="96" cy="96" r="90" fill="#282c34" stroke="#fc3d21" stroke-width="4"/>
+  <circle cx="96" cy="96" r="60" fill="none" stroke="#355a66" stroke-width="2" opacity="0.5"/>
+  <circle cx="96" cy="96" r="40" fill="none" stroke="#355a66" stroke-width="1" opacity="0.3"/>
+  <path d="M96 6 L96 186 M6 96 L186 96" stroke="#355a66" stroke-width="1" opacity="0.2"/>
+  <path d="M30 96 Q96 30 162 96 Q96 162 30 96" fill="none" stroke="#fc3d21" stroke-width="2" opacity="0.4"/>
+  <circle cx="96" cy="96" r="8" fill="#fc3d21"/>
+  <text x="96" y="100" text-anchor="middle" font-family="monospace" font-size="8" fill="#282c34" font-weight="bold">GI</text>
+</svg>

@@ -61,11 +61,7 @@ const ControlManager = {
             const lng = getVal(props.lng);
 
             if (lat !== undefined && lng !== undefined) {
-                const zoom = (CONFIG.CAMERA && CONFIG.CAMERA.incidentZoom) ||
-                             (CONFIG.CAMERA_DEFAULTS && CONFIG.CAMERA_DEFAULTS.destination && CONFIG.CAMERA_DEFAULTS.destination.height) ||
-                             1200000;
-
-                CameraManager.flyTo(lat, lng, zoom);
+                CameraManager.flyToIncident(lat, lng);
             }
         }
     }

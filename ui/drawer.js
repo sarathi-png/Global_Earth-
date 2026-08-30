@@ -47,6 +47,7 @@ const DrawerManager = {
         const type = (this.getVal(props.type) || 'info').toLowerCase();
         const year = this.getVal(props.year) || '-';
         const severity = this.getVal(props.severity) || 'Normal';
+        const wikiQuery = this.getVal(props.wikiQuery) || title;
 
         const titleEl = document.getElementById('drawerTitle');
         const descEl = document.getElementById('drawerDescription');
@@ -65,24 +66,13 @@ const DrawerManager = {
 
         if (imgEl && placeholderEl) {
             const token = ++this._loadToken;
-            this.loadImage(type, title, year, imgEl, placeholderEl, token);
+            this.loadImage(type, wikiQuery, year, imgEl, placeholderEl, token);
         }
 
         if (!this.drawer) return;
+        this.drawer.style.transform = '';
         this.drawer.classList.add('open');
         this.isOpen = true;
-
-        if (typeof gsap !== 'undefined' && gsap.fromTo) {
-            gsap.fromTo(this.drawer,
-                { x: 420 },
-                { x: 0, duration: 0.6, ease: "expo.out" }
-            );
-        }
-
-        if (window.innerWidth < 768) {
-            const sidebar = document.getElementById('sidebar');
-            if (sidebar) sidebar.classList.add('collapsed');
-        }
     },
 
     async loadImage(type, title, year, imgEl, placeholderEl, token) {
@@ -91,7 +81,7 @@ const DrawerManager = {
 
         let imageUrl = null;
         if (navigator.onLine && typeof WikipediaImage !== 'undefined') {
-            imageUrl = await WikipediaImage.getThumbnail(title);
+            imageUrl = await WikipediaImage.getThumbnail(wikiQuery);
         }
 
         if (token !== this._loadToken) return;
@@ -142,20 +132,9 @@ const DrawerManager = {
 
     close() {
         if (!this.drawer) return;
-        if (typeof gsap !== 'undefined' && gsap.to) {
-            gsap.to(this.drawer, {
-                x: 420,
-                duration: 0.4,
-                ease: "power2.in",
-                onComplete: () => {
-                    this.drawer.classList.remove('open');
-                    this.isOpen = false;
-                }
-            });
-        } else {
-            this.drawer.classList.remove('open');
-            this.isOpen = false;
-        }
+        this.drawer.classList.remove('open');
+        this.drawer.style.transform = '';
+        this.isOpen = false;
     }
 };
 

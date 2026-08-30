@@ -1,10 +1,16 @@
 {
-  "name": "global-earth-offline-server",
-  "version": "0.1.0",
-  "description": "Static offline Global Earth project server",
+  "name": "global-earth-gointel",
+  "version": "2.1.0",
+  "description": "3D globe intelligence platform with real-time disaster, weather, aircraft, and satellite data",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "node server.js 3000",
+    "deploy": "node scripts/deploy.js",
+    "build": "echo 'Static app - no build needed'"
   },
   "author": "OpenCode",
-  "license": "MIT"
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
 }

@@ -1,52 +1,61 @@
 #legend {
-    position: absolute;
-    bottom: 40px;
+    position: fixed;
     right: 20px;
-    padding: 15px;
+    bottom: 20px;
+    padding: 12px 16px;
     z-index: 10;
-    max-width: 200px;
+    min-width: 180px;
+    max-width: 220px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
 }
 
 #legend h4 {
-    font-size: 0.8rem;
+    font-size: 0.65rem;
     text-transform: uppercase;
     color: var(--text-secondary);
-    margin-bottom: 10px;
-    letter-spacing: 1px;
+    margin-bottom: 6px;
+    letter-spacing: 0.2em;
+    font-weight: 500;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--panel-border);
 }
 
 .legend-item {
     display: flex;
     align-items: center;
-    gap: 10px;
-    font-size: 0.85rem;
-    margin-bottom: 6px;
+    gap: 8px;
+    font-size: 0.75rem;
+    padding: 4px 0;
     color: var(--text-secondary);
+    transition: all var(--transition-default);
+}
+
+.legend-item:hover {
+    color: var(--text-primary);
+}
+
+.legend-item.hidden-layer {
+    opacity: 0.25;
+    pointer-events: none;
 }
 
 .marker-symbol {
-    width: 10px;
-    height: 10px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
     display: inline-block;
     flex-shrink: 0;
 }
 
-.marker-symbol.disaster { background-color: var(--accent-amber); box-shadow: 0 0 5px var(--accent-amber); }
-.marker-symbol.war { background-color: var(--accent-red); box-shadow: 0 0 5px var(--accent-red); }
-.marker-symbol.mystery { background-color: var(--accent-purple); box-shadow: 0 0 5px var(--accent-purple); }
-.marker-symbol.history { background-color: var(--accent-cyan); box-shadow: 0 0 5px var(--accent-cyan); }
-.marker-symbol.aircraft { background-color: #fff; border: 1px solid var(--accent-cyan); box-shadow: 0 0 5px #fff; }
-.marker-symbol.satellite { background-color: var(--accent-cyan); border: 1px solid #fff; box-shadow: 0 0 5px var(--accent-cyan); }
-
-.marker-symbol.border-stable { 
-    background-color: rgba(0, 255, 127, 0.4); 
-    border: 1px solid rgb(0, 255, 127);
-    border-radius: 2px;
-}
-.marker-symbol.border-unstable { 
-    background-color: rgba(255, 0, 0, 0.4); 
-    border: 1px solid rgb(255, 0, 0);
-    border-radius: 2px;
-}
-.marker-symbol.live { background-color: var(--accent-amber); border: 1px solid #fff; box-shadow: 0 0 5px var(--accent-amber); }
+.marker-symbol.disaster { background-color: var(--accent-amber); box-shadow: 0 0 6px var(--accent-amber); }
+.marker-symbol.war { background-color: var(--accent-red); box-shadow: 0 0 6px var(--accent-red); clip-path: polygon(50% 0%, 0% 100%, 100% 100%); }
+.marker-symbol.mystery { background-color: var(--accent-purple); box-shadow: 0 0 6px var(--accent-purple); clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%); }
+.marker-symbol.history { background-color: var(--accent-cyan); box-shadow: 0 0 6px var(--accent-cyan); }
+.marker-symbol.aircraft { background-color: var(--accent-cyan); box-shadow: 0 0 6px var(--accent-cyan); clip-path: polygon(50% 0%, 100% 100%, 0% 100%); }
+.marker-symbol.satellite { background-color: var(--accent-amber); box-shadow: 0 0 6px var(--accent-amber); width: 6px; height: 6px; }
+.marker-symbol.weather { background-color: rgba(255, 255, 255, 0.6); box-shadow: 0 0 4px rgba(255, 255, 255, 0.4); }
+.marker-symbol.border-stable { background-color: transparent; border: 1.5px solid var(--accent-emerald); box-shadow: 0 0 4px rgba(94, 233, 181, 0.3); border-radius: 2px; }
+.marker-symbol.border-unstable { background-color: transparent; border: 1.5px solid var(--accent-red); box-shadow: 0 0 4px rgba(255, 163, 163, 0.3); border-radius: 2px; }
+.marker-symbol.live { background-color: var(--accent-primary); border: 1px solid #fff; box-shadow: 0 0 6px var(--accent-primary); }

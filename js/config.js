@@ -1,17 +1,17 @@
 const CONFIG = {
-    // Cesium Ion Access Token - Replace with your own token from https://ion.cesium.com/
-    // Defaulting to a placeholder; some features may require a valid token.
-    CESIUM_TOKEN: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIyMmZjZTI4ZC05NGRkLTRjNjctYWVmMC05YzRkOWVjNGYwOTgiLCJpZCI6NDA2NjUyLCJpYXQiOjE3NzQwMDk5NTB9.BdwMpJaBew2ZYDOtRQP1XB5wyJpIpKTQphP97k4ixa0', 
-    
+    CESIUM_TOKEN: (typeof process !== 'undefined' && process.env && process.env.CESIUM_TOKEN) || '',
+    FIRMS_MAP_KEY: (typeof process !== 'undefined' && process.env && process.env.FIRMS_MAP_KEY) || '',
+    NASA_API_KEY: (typeof process !== 'undefined' && process.env && process.env.NASA_API_KEY) || 'DEMO_KEY',
+
     GLOBE_SETTINGS: {
-        baseColor: '#1a202c', // Lighter dark blue for visibility if imagery fails
+        baseColor: '#1a202c',
         enableAtmosphere: true,
         enableLighting: true,
         nightAlpha: 0.8
     },
-    
+
     CAMERA: {
-        incidentZoom: 1200000
+        incidentZoom: 50000
     },
 
     CAMERA_DEFAULTS: {
@@ -22,59 +22,49 @@ const CONFIG = {
         },
         duration: 3
     },
-    
+
+    API: {
+        PROXY_BASE: '',
+        SSE_ENABLED: true,
+        CACHE_TTL: 60000,
+        REFRESH_INTERVAL: 120000
+    },
+
+    SOURCES: {
+        EONET: 'https://eonet.gsfc.nasa.gov/api/v3/events',
+        USGS: 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson',
+        GDACS: 'https://www.gdacs.org/xml/rss.xml',
+        NOAA_NWS: 'https://api.weather.gov/alerts/active?status=actual&message_type=alert',
+        FIRMS: 'https://firms.modaps.eosdis.nasa.gov/api/area/csv',
+        OPEN_METEO: 'https://api.open-meteo.com/v1/forecast',
+        FEMA: 'https://www.fema.gov/api/open/v2/DisasterDeclarationsSummaries',
+        GIBS: 'https://gibs.earthdata.nasa.gov/wmts/epsg4326/best',
+        AIRPLANES_LIVE: 'https://api.airplanes.live/v2',
+        CELESTRAK: 'https://celestrak.org/NORAD/elements/gp.php',
+        WIKIPEDIA: 'https://en.wikipedia.org/api/rest_v1/page/summary',
+        GDELT: 'https://api.gdeltproject.org/api/v2/doc/doc',
+        RELIEFWEB: 'https://api.reliefweb.int/v2/disasters'
+    },
+
     LAYERS: {
-        disasters: {
-            enabled: true,
-            color: '#ffb400',
-            icon: 'fa-house-damage'
-        },
-        wars: {
-            enabled: true,
-            color: '#ff3b30',
-            icon: 'fa-shield-alt'
-        },
-        mysteries: {
-            enabled: false,
-            color: '#bf5af2',
-            icon: 'fa-question-circle'
-        },
-        historical: {
-            enabled: false,
-            color: '#00f2ff',
-            icon: 'fa-history'
-        },
-        borders: {
-            enabled: false,
-            color: '#00f2ff',
-            opacity: 0.5,
-            icon: 'fa-globe-americas'
-        },
-        weather: {
-            enabled: false,
-            color: '#ffffff',
-            icon: 'fa-cloud'
-        },
-        aircraft: {
-            enabled: false,
-            color: '#00d4ff',
-            icon: 'fa-plane'
-        },
-        satellite: {
-            enabled: false,
-            color: '#ff9500',
-            icon: 'fa-satellite'
-        },
-        live: {
-            enabled: false,
-            color: '#ffb400',
-            icon: 'fa-broadcast-tower',
-            refreshMinutes: 5
-        }
+        disasters: { enabled: true, color: '#ffb400', icon: 'fa-house-damage' },
+        wars: { enabled: true, color: '#ff3b30', icon: 'fa-shield-alt' },
+        mysteries: { enabled: false, color: '#bf5af2', icon: 'fa-question-circle' },
+        historical: { enabled: false, color: '#9cdef2', icon: 'fa-history' },
+        borders: { enabled: false, color: '#5ee9b5', opacity: 0.5, icon: 'fa-globe-americas' },
+        weather: { enabled: false, color: '#ffffff', icon: 'fa-cloud' },
+        aircraft: { enabled: false, color: '#9cdef2', icon: 'fa-plane' },
+        satellite: { enabled: false, color: '#ff9500', icon: 'fa-satellite' },
+        live: { enabled: false, color: '#ffb400', icon: 'fa-broadcast-tower', refreshMinutes: 2 }
     }
 };
 
-// Initialize Cesium Token
-if (CONFIG.CESIUM_TOKEN) {
+if (typeof window !== 'undefined') {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('cesium_token')) CONFIG.CESIUM_TOKEN = params.get('cesium_token');
+    if (params.get('firms_key')) CONFIG.FIRMS_MAP_KEY = params.get('firms_key');
+}
+
+if (typeof Cesium !== 'undefined' && CONFIG.CESIUM_TOKEN) {
     Cesium.Ion.defaultAccessToken = CONFIG.CESIUM_TOKEN;
 }

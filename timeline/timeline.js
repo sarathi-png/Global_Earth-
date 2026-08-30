@@ -9,7 +9,7 @@ const TimelineManager = {
             slider.addEventListener('input', (e) => {
                 this.currentYear = parseInt(e.target.value);
                 display.innerText = this.currentYear;
-                this.applyFilters();
+                this.debouncedFilter();
             });
         }
 
@@ -21,6 +21,8 @@ const TimelineManager = {
         console.log("Timeline Manager Initialized");
         this.applyFilters();
     },
+
+    _filterTimer: null,
 
     applyFilters() {
         const layers = [
@@ -36,12 +38,9 @@ const TimelineManager = {
         layers.forEach(layer => {
             if (!layer || !layer.entities) return;
             layer.entities.forEach(entity => {
-                if (!layer.visible) return; // Respect layer toggle
-                
-                // For simulated layers that don't use ConstantProperty yet, we add a check
+                if (!layer.visible) return;
                 const propYear = entity.properties.year;
                 const entityYear = (propYear && typeof propYear.getValue === 'function') ? propYear.getValue() : propYear;
-                
                 entity.show = (entityYear <= this.currentYear);
             });
         });
@@ -49,6 +48,14 @@ const TimelineManager = {
         if (typeof updateGlobalStats === 'function') {
             updateGlobalStats();
         }
+        if (GlobeManager && GlobeManager._cullingReset) {
+            GlobeManager._cullingReset();
+        }
+    },
+
+    debouncedFilter() {
+        if (this._filterTimer) cancelAnimationFrame(this._filterTimer);
+        this._filterTimer = requestAnimationFrame(() => this.applyFilters());
     },
 
     playInterval: null,
@@ -86,7 +93,7 @@ const TimelineManager = {
                 this.currentYear = nextYear;
                 document.getElementById('currentYearDisplay').innerText = nextYear;
                 this.applyFilters();
-            }, 800);
+            }, 1000);
         }
     }
 };

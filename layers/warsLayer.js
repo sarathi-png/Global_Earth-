@@ -3,6 +3,7 @@ const WarsLayer = {
     visible: false,
 
     async init() {
+        if (!this.visible) return;
         try {
             const response = await fetch('data/wars.json');
             const data = await response.json();
@@ -26,6 +27,10 @@ const WarsLayer = {
 
     toggleVisibility(show) {
         this.visible = show;
+        if (show && this.entities.length === 0 && !this._initialized) {
+            this._initialized = true;
+            this.init();
+        }
         this.entities.forEach(entity => {
             entity.show = show;
         });
