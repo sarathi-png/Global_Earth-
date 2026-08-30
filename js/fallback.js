@@ -1,6 +1,6 @@
 // Fallback script for Cesium load detection
 (function () {
-  const timeout = 2000; // ms to wait for Cesium to load
+  const timeout = 8000; // ms to wait for Cesium to load
   let cesiumLoaded = false;
 
   // Check if Cesium is already defined (maybe loaded synchronously)

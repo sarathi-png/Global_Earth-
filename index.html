@@ -10,10 +10,18 @@
     <link rel="manifest" href="manifest.json">
     <link rel="icon" type="image/svg+xml" href="assets/icons/icon-192.svg">
     
-    <!-- CesiumJS (local - full bundle with Workers/Assets/ThirdParty) -->
-    <script>window.CESIUM_BASE_URL = 'vendor/cesium/';</script>
-    <script src="vendor/cesium/Cesium.js?v=2.1"></script>
-    <link href="vendor/cesium/Widgets/widgets.css?v=2.1" rel="stylesheet">
+    <!-- CesiumJS CDN (fast load, local vendor as fallback) -->
+    <link rel="stylesheet" href="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Widgets/widgets.css">
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Cesium.js"></script>
+    <script>
+      if (typeof Cesium === 'undefined') {
+        document.write('<script src="vendor/cesium/Cesium.js"><\/script>');
+        document.write('<link href="vendor/cesium/Widgets/widgets.css" rel="stylesheet">');
+        window.CESIUM_BASE_URL = 'vendor/cesium/';
+      } else {
+        window.CESIUM_BASE_URL = 'https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/';
+      }
+    </script>
     
     <!-- GSAP -->
     <script src="vendor/gsap/gsap.min.js?v=2.1"></script>
@@ -33,7 +41,8 @@
     <link rel="stylesheet" href="css/search.css?v=2.1">
     <link rel="stylesheet" href="css/layers.css?v=2.1">
     <link rel="stylesheet" href="css/animations.css?v=2.1">
-    <link rel="stylesheet" href="css/responsive.css?v=2.1">`n    <link rel="stylesheet" href="css/notifications.css?v=2.1">
+    <link rel="stylesheet" href="css/responsive.css?v=2.1">
+    <link rel="stylesheet" href="css/notifications.css?v=2.1">
 </head>
 <body>
     <div id="appContainer">
@@ -209,7 +218,6 @@
                 </div>
             </div>
         </div>
-        </button>
 
         <!-- Floating Legend -->
         <div id="legend" class="glass-panel">
@@ -290,6 +298,18 @@
         <i class="fas fa-random"></i>
     </button>
 
+    <!-- Toast Notifications -->
+    <div id="toastContainer"></div>
+
+    <!-- Event Feed Panel -->
+    <div id="eventFeed">
+        <button id="feedToggle"><i class="fas fa-bell"></i><span id="feedBadge" class="feed-badge"></span></button>
+        <div class="feed-panel" id="feedPanel">
+            <div class="feed-header"><h3>Live Event Feed <span id="feedCount" class="feed-count"></span></h3></div>
+            <div class="feed-body" id="eventFeedList"></div>
+        </div>
+    </div>
+
     <!-- JS Configuration -->
     <script src="js/config.js?v=2.1"></script>
 
@@ -317,7 +337,11 @@
 
     <!-- Live Data -->
     <script src="js/liveApi.js?v=2.1" defer></script>
-    <script src="js/statsDashboard.js?v=2.1" defer></script>`n    <script src="layers/dayNightLayer.js?v=2.1" defer></script>`n    <script src="layers/heatmapLayer.js?v=2.1" defer></script>`n    <script src="layers/rippleArcLayer.js?v=2.1" defer></script>`n    <script src="layers/liveLayer.js?v=2.1" defer></script>
+    <script src="js/statsDashboard.js?v=2.1" defer></script>
+    <script src="layers/dayNightLayer.js?v=2.1" defer></script>
+    <script src="layers/heatmapLayer.js?v=2.1" defer></script>
+    <script src="layers/rippleArcLayer.js?v=2.1" defer></script>
+    <script src="layers/liveLayer.js?v=2.1" defer></script>
 
     <!-- Search -->
     <script src="search/searchEngine.js?v=2.1" defer></script>
@@ -345,7 +369,10 @@
     <!-- Wikipedia Image Lookup -->
     <script src="js/wikipediaImage.js?v=2.1" defer></script>
 
-    <!-- Toast Notifications -->`n    <div id="toastContainer"></div>`n`n    <!-- Event Feed Panel -->`n    <div id="eventFeed">`n        <button id="feedToggle"><i class="fas fa-bell"></i><span id="feedBadge" class="feed-badge"></span></button>`n        <div class="feed-panel" id="feedPanel">`n            <div class="feed-header"><h3>Live Event Feed <span id="feedCount" class="feed-count"></span></h3></div>`n            <div class="feed-body" id="eventFeedList"></div>`n        </div>`n    </div>`n`n    <!-- App Bootstrapper -->
+    <!-- Notifications -->
+    <script src="js/notifications.js?v=2.1" defer></script>
+
+    <!-- App Bootstrapper -->
     <script src="js/app.js?v=2.1" defer></script>
     <script>
       if ('serviceWorker' in navigator) {

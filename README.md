@@ -1,3 +1,14 @@
+---
+title: Global Earth
+emoji: 🌍
+colorFrom: blue
+colorTo: green
+sdk: static
+app_file: index.html
+pinned: false
+license: mit
+---
+
 # Global Earth — GEO-INTEL Platform
 
 A fully offline-capable 3D globe intelligence platform built with [CesiumJS](https://cesium.com/). Visualizes major disasters, wars, mysteries, historical events, aircraft, satellites, weather, and country borders on an interactive 3D earth with search, timeline playback, and hover/click detail panels.
