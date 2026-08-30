@@ -4,3 +4,15 @@ node_modules/
 Thumbs.db
 *.mp4
 download*.png
+
+# Binary files (use CDN for CesiumJS, FA, fonts - HF rejects binaries)
+vendor/cesium/
+vendor/fontawesome/
+fonts/
+assets/textures/
+*.wasm
+*.woff2
+*.woff
+*.ttf
+*.jpg
+*.png
