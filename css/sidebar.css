@@ -133,3 +133,15 @@ input:checked + .slider:before {
 .status-item .value.online {
     color: var(--accent-cyan);
 }
+
+.status-item .value.loading {
+    color: var(--accent-amber);
+}
+
+.status-item .value.offline {
+    color: var(--text-secondary);
+}
+
+.status-item .value.error {
+    color: var(--accent-red);
+}

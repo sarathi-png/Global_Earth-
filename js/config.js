@@ -64,6 +64,12 @@ const CONFIG = {
             enabled: false,
             color: '#ff9500',
             icon: 'fa-satellite'
+        },
+        live: {
+            enabled: false,
+            color: '#ffb400',
+            icon: 'fa-broadcast-tower',
+            refreshMinutes: 5
         }
     }
 };

@@ -8,17 +8,26 @@ const mime = {
   '.html': 'text/html',
   '.css': 'text/css',
   '.js': 'application/javascript',
+  '.cjs': 'application/javascript',
+  '.mjs': 'application/javascript',
   '.json': 'application/json',
+  '.xml': 'application/xml',
+  '.wasm': 'application/wasm',
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
   '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.avif': 'image/avif',
+  '.ktx2': 'image/ktx2',
+  '.bin': 'application/octet-stream',
+  '.glb': 'model/gltf-binary',
+  '.gltf': 'model/gltf+json',
   '.woff2': 'font/woff2',
   '.woff': 'font/woff',
   '.ttf': 'font/ttf',
   '.svg': 'image/svg+xml',
-  '.ico': 'image/x-icon',
-  '.webp': 'image/webp'
+  '.ico': 'image/x-icon'
 };
 
 const server = http.createServer((req, res) => {

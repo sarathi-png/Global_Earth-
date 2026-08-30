@@ -29,7 +29,8 @@ const TimelineManager = {
             window.MysteryLayer, 
             window.HistoricalLayer, 
             window.AircraftLayer, 
-            window.SatelliteLayer
+            window.SatelliteLayer,
+            window.LiveLayer
         ];
         
         layers.forEach(layer => {

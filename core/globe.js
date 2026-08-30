@@ -19,12 +19,14 @@ const GlobeManager = {
                 shouldAnimate: true
             };
 
-            if (CONFIG.CESIUM_TOKEN) {
+            if (CONFIG.CESIUM_TOKEN && navigator.onLine) {
                 try {
                     viewerOptions.terrainProvider = await Cesium.CesiumTerrainProvider.fromIonAssetId(1);
                 } catch (e) {
                     console.warn("Terrain failed, falling back to ellipsoid.");
                 }
+            } else {
+                console.log("Offline mode: using ellipsoid terrain.");
             }
 
             this.viewer = new Cesium.Viewer(containerId, viewerOptions);
@@ -51,19 +53,19 @@ const GlobeManager = {
                 console.warn("Cesium render error caught:", error);
             });
 
-            if (CONFIG.CESIUM_TOKEN) {
+            if (CONFIG.CESIUM_TOKEN && navigator.onLine) {
                 try {
                     this.viewer.imageryLayers.removeAll();
                     this.viewer.imageryLayers.addImageryProvider(
                         await Cesium.IonImageryProvider.fromAssetId(3)
                     );
                 } catch (e) {
-                    console.warn("Ion Imagery failed, using default.");
-                    await this.setupFallbackImagery();
+                    console.warn("Ion Imagery failed, using local texture.");
+                    await this.setupLocalImagery();
                 }
             } else {
-                console.log("No Cesium Token; using OpenStreetMap fallback.");
-                await this.setupFallbackImagery();
+                console.log("Offline mode: using bundled texture imagery.");
+                await this.setupLocalImagery();
             }
 
             this.initFrustumCulling();
@@ -97,18 +99,33 @@ const GlobeManager = {
         const canvas = scene.canvas;
 
         let lastUpdate = 0;
-        const UPDATE_INTERVAL = 200;
+        let lastCamPos = null;
+        let lastCamDir = null;
+        const UPDATE_INTERVAL = 500;
+        const MAX_IDLE_INTERVAL = 1000;
+        const LABEL_MAX_DISTANCE = 10000000;
+        const occluder = new Cesium.EllipsoidalOccluder(Cesium.Ellipsoid.WGS84, Cesium.Cartesian3.ZERO);
 
         scene.preRender.addEventListener(() => {
             try {
                 const now = Date.now();
-                if (now - lastUpdate < UPDATE_INTERVAL) return;
-                lastUpdate = now;
-
                 const camPos = camera.position;
-                const camDir = Cesium.Cartesian3.normalize(camera.direction, new Cesium.Cartesian3());
+                const camDir = camera.direction;
+
+                const cameraMoved = !lastCamPos ||
+                    !Cesium.Cartesian3.equalsEpsilon(camPos, lastCamPos, 1000) ||
+                    !Cesium.Cartesian3.equalsEpsilon(camDir, lastCamDir, 1e-6);
+
+                if (!cameraMoved && now - lastUpdate < MAX_IDLE_INTERVAL) return;
+                if (cameraMoved && now - lastUpdate < UPDATE_INTERVAL) return;
+                lastUpdate = now;
+                lastCamPos = Cesium.Cartesian3.clone(camPos);
+                lastCamDir = Cesium.Cartesian3.clone(camDir);
+
+                const camDirNorm = Cesium.Cartesian3.normalize(camDir, new Cesium.Cartesian3());
                 const W = canvas.clientWidth;
                 const H = canvas.clientHeight;
+                occluder.cameraPosition = camPos;
 
                 const allLayers = [
                     window.DisastersLayer,
@@ -116,11 +133,12 @@ const GlobeManager = {
                     window.MysteryLayer,
                     window.HistoricalLayer,
                     window.AircraftLayer,
-                    window.SatelliteLayer
+                    window.SatelliteLayer,
+                    window.LiveLayer
                 ];
 
                 allLayers.forEach(layer => {
-                    if (!layer || !layer.entities) return;
+                    if (!layer || !layer.entities || !layer.visible) return;
 
                     layer.entities.forEach(entity => {
                         if (!entity.position || !entity.point || !entity.label) return;
@@ -133,9 +151,15 @@ const GlobeManager = {
                         if (dist < 1) return;
 
                         const toPointNorm = Cesium.Cartesian3.divideByScalar(toPoint, dist, new Cesium.Cartesian3());
-                        const dot = Cesium.Cartesian3.dot(camDir, toPointNorm);
+                        const dot = Cesium.Cartesian3.dot(camDirNorm, toPointNorm);
 
                         if (dot < 0.1) {
+                            entity.label.show = false;
+                            entity.point.show = false;
+                            return;
+                        }
+
+                        if (occluder.isPointVisible(worldPos) === false) {
                             entity.label.show = false;
                             entity.point.show = false;
                             return;
@@ -157,13 +181,27 @@ const GlobeManager = {
                         }
 
                         entity.point.show = true;
-                        entity.label.show = true;
+                        entity.label.show = dist < LABEL_MAX_DISTANCE;
                     });
                 });
             } catch (e) {
                 // Silently ignore frustum culling errors to prevent render crashes
             }
         });
+    },
+
+    async setupLocalImagery() {
+        this.viewer.imageryLayers.removeAll();
+        try {
+            const provider = await Cesium.SingleTileImageryProvider.fromUrl(
+                'assets/textures/earth-texture.jpg'
+            );
+            this.viewer.imageryLayers.addImageryProvider(provider);
+            console.log("Bundled earth texture imagery active.");
+        } catch (e) {
+            console.warn("Local texture imagery failed; trying OSM.", e);
+            await this.setupFallbackImagery();
+        }
     },
 
     async setupFallbackImagery() {

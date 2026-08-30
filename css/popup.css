@@ -58,6 +58,7 @@
     margin-bottom: 20px;
     object-fit: cover;
     border: 1px solid var(--panel-border);
+    cursor: zoom-in;
 }
 
 #drawerImagePlaceholder {

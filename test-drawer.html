@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global 3D Intelligence Platform</title>
+    
+    <!-- CesiumJS (local - full bundle with Workers/Assets/ThirdParty) -->
+    <script>window.CESIUM_BASE_URL = 'vendor/cesium/';</script>
+    <script src="vendor/cesium/Cesium.js"></script>
+    <link href="vendor/cesium/Widgets/widgets.css" rel="stylesheet">
+    
+    <!-- GSAP -->
+    <script src="vendor/gsap/gsap.min.js"></script>
+    
+    <!-- Font Awesome (local) -->
+    <link rel="stylesheet" href="vendor/fontawesome/css/all.min.css">
+
+    <!-- Global Fonts (local) -->
+    <link rel="stylesheet" href="css/fonts.css">
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/globe.css">
+    <link rel="stylesheet" href="css/sidebar.css">
+    <link rel="stylesheet" href="css/popup.css">
+    <link rel="stylesheet" href="css/timeline.css">
+    <link rel="stylesheet" href="css/search.css">
+    <link rel="stylesheet" href="css/layers.css">
+    <link rel="stylesheet" href="css/animations.css">
+    <link rel="stylesheet" href="css/responsive.css">
+</head>
+<body>
+    <div id="appContainer">
+        <!-- Globe Container -->
+        <div id="globeContainer"></div>
+
+        <!-- Top Floating Search Bar -->
+        <div id="searchBar" class="glass-panel">
+            <div class="search-input-wrapper">
+                <i class="fas fa-search"></i>
+                <input type="text" placeholder="Search incidents, countries, years..." id="globalSearch">
+            </div>
+            <div class="search-results hidden" id="searchResults"></div>
+        </div>
+
+        <!-- Left Intelligence Sidebar -->
+        <aside id="sidebar" class="glass-panel">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-satellite-dish"></i>
+                    <span>GEO-INTEL</span>
+                </div>
+                <button id="toggleSidebar" class="icon-btn"><i class="fas fa-bars"></i></button>
+            </div>
+            
+            <div class="layer-controls">
+                <h3>Intelligence Layers</h3>
+                <div class="layer-item" data-layer="disasters">
+                    <label class="switch">
+                        <input type="checkbox" checked id="toggleDisasters">
+                        <span class="slider round"></span>
+                    </label>
+                    <span><i class="fas fa-house-damage"></i> Disasters</span>
+                </div>
+                <div class="layer-item" data-layer="wars">
+                    <label class="switch">
+                        <input type="checkbox" id="toggleWars">
+                        <span class="slider round"></span>
+                    </label>
+                    <span><i class="fas fa-shield-alt"></i> Conflicts & Wars</span>
+                </div>
+                <div class="layer-item" data-layer="mysteries">
+                    <label class="switch">
+                        <input type="checkbox" id="toggleMysteries">
+                        <span class="slider round"></span>
+                    </label>
+                    <span><i class="fas fa-question-circle"></i> Mysteries</span>
+                </div>
+                <div class="layer-item" data-layer="history">
+                    <label class="switch">
+                        <input type="checkbox" id="toggleHistory">
+                        <span class="slider round"></span>
+                    </label>
+                    <span><i class="fas fa-history"></i> Major Events</span>
+                </div>
+                <div class="layer-item" data-layer="aircraft">
+                    <label class="switch">
+                        <input type="checkbox" id="toggleAircraft">
+                        <span class="slider round"></span>
+                    </label>
+                    <span><i class="fas fa-plane"></i> Aerospace</span>
+                </div>
+                <div class="layer-item" data-layer="sat">
+                    <label class="switch">
+                        <input type="checkbox" id="toggleSat">
+                        <span class="slider round"></span>
+                    </label>
+                    <span><i class="fas fa-satellite"></i> Satellites</span>
+                </div>
+                <div class="layer-item" data-layer="weather">
+                    <label class="switch">
+                        <input type="checkbox" id="toggleWeather">
+                        <span class="slider round"></span>
+                    </label>
+                    <span><i class="fas fa-cloud"></i> Weather Overlay</span>
+                </div>
+                <div class="layer-item" data-layer="borders">
+                    <label class="switch">
+                        <input type="checkbox" id="toggleBorders">
+                        <span class="slider round"></span>
+                    </label>
+                    <span><i class="fas fa-globe-americas"></i> Balance of Power</span>
+                </div>
+                <div class="layer-item" data-layer="live">
+                    <label class="switch">
+                        <input type="checkbox" id="toggleLive">
+                        <span class="slider round"></span>
+                    </label>
+                    <span><i class="fas fa-broadcast-tower"></i> Live Events</span>
+                </div>
+            </div>
+            
+            <div class="status-indicators">
+                <div class="status-item">
+                    <span class="label">System:</span>
+                    <span class="value online">Operational</span>
+                </div>
+                <div class="status-item">
+                    <span class="label">Markers:</span>
+                    <span id="activeMarkerCount" class="value">0</span>
+                </div>
+                <div class="status-item">
+                    <span class="label">Live Data:</span>
+                    <span id="liveDataStatus" class="value offline">Offline</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Right Incident Drawer -->
+        <div id="rightDrawer" class="glass-panel">
+            <button id="closeDrawer" class="close-btn">&times;</button>
+            <div id="drawerContent">
+                <div class="drawer-header">
+                    <h2 id="drawerTitle">Incident Details</h2>
+                    <span id="drawerType" class="badge">Type</span>
+                </div>
+                <div class="drawer-body">
+                    <img id="drawerImage" class="media-placeholder" alt="Incident Image" style="display:none; width:100%; border-radius:8px; margin-bottom:16px;" />
+                    <div id="drawerImagePlaceholder" class="media-placeholder">
+                        <i class="fas fa-image"></i>
+                    </div>
+                    <p id="drawerDescription">Select a mission or incident marker on the globe to view intelligence reports.</p>
+                    <div class="metadata-grid">
+                        <div class="meta-item">
+                            <span class="meta-label">Year</span>
+                            <span id="metaYear" class="meta-value">-</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">Severity</span>
+                            <span id="metaSeverity" class="meta-value">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Premium Timeline -->
+        <div id="timeline" class="glass-panel">
+            <div class="timeline-controls">
+                <button id="playTimeline"><i class="fas fa-play"></i></button>
+                <div class="range-wrapper">
+                    <input type="range" id="yearSlider" min="1900" max="2025" value="2025">
+                    <div id="currentYearDisplay">2025</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Floating Legend -->
+        <div id="legend" class="glass-panel">
+            <h4>Tactical Legend</h4>
+            <div class="legend-item" data-layer="disasters">
+                <span class="marker-symbol disaster"></span>
+                <span>Major Disaster</span>
+            </div>
+            <div class="legend-item" data-layer="wars">
+                <span class="marker-symbol war"></span>
+                <span>Conflict / War</span>
+            </div>
+            <div class="legend-item" data-layer="mysteries">
+                <span class="marker-symbol mystery"></span>
+                <span>Mystery / Unknown</span>
+            </div>
+            <div class="legend-item" data-layer="history">
+                <span class="marker-symbol history"></span>
+                <span>Major Event</span>
+            </div>
+            <div class="legend-item" data-layer="aircraft">
+                <span class="marker-symbol aircraft"></span>
+                <span>Aerospace (Active)</span>
+            </div>
+            <div class="legend-item" data-layer="sat">
+                <span class="marker-symbol satellite"></span>
+                <span>Satellite (Orbit)</span>
+            </div>
+            <div class="legend-item" data-layer="weather">
+                <span class="marker-symbol weather"></span>
+                <span>Weather Overlay</span>
+            </div>
+            <div class="legend-item" data-layer="borders">
+                <span class="marker-symbol border-stable"></span>
+                <span>Region: Stable</span>
+            </div>
+            <div class="legend-item" data-layer="live">
+                <span class="marker-symbol live"></span>
+                <span>Live Event (NASA/USGS)</span>
+            </div>
+        </div>
+
+        <!-- Custom Hover Popup -->
+        <div id="popup" class="glass-panel hidden">
+            <h4 id="popupTitle"></h4>
+            <div id="popupMeta"></div>
+        </div>
+
+        <!-- Media Modal -->
+        <div id="mediaModal" class="modal hidden">
+            <div class="modal-content glass-panel">
+                <span id="closeModal" class="close">&times;</span>
+                <div id="modalBody"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JS Configuration -->
+    <script src="js/config.js"></script>
+
+    <!-- Core Logic -->
+    <script src="core/globe.js"></script>
+    <script src="core/camera.js"></script>
+    <script src="core/terrain.js"></script>
+    <script src="core/controls.js"></script>
+
+    <!-- Animations -->
+    <script src="animations/markerPulse.js"></script>
+
+    <!-- Incidents -->
+    <script src="incidents/markers.js"></script>
+
+    <!-- Layers -->
+    <script src="layers/disastersLayer.js"></script>
+    <script src="layers/warsLayer.js"></script>
+    <script src="layers/mysteryLayer.js"></script>
+    <script src="layers/historicalLayer.js"></script>
+    <script src="layers/aircraftLayer.js"></script>
+    <script src="layers/satelliteLayer.js"></script>
+    <script src="layers/weatherLayer.js"></script>
+    <script src="layers/bordersLayer.js"></script>
+
+    <!-- Live Data -->
+    <script src="js/liveApi.js"></script>
+    <script src="layers/liveLayer.js"></script>
+
+    <!-- Search -->
+    <script src="search/searchEngine.js"></script>
+    <script src="search/searchUI.js"></script>
+
+    <!-- Timeline -->
+    <script src="timeline/filters.js"></script>
+    <script src="timeline/timeline.js"></script>
+
+    <!-- Debugging Diagnostics -->
+    <script src="js/debugger.js"></script>
+
+    <!-- UI & Interactivity -->
+    <script src="ui/drawer.js"></script>
+    <script src="incidents/hoverPopup.js"></script>
+    <script src="incidents/clustering.js"></script>
+    <script src="animations/uiAnimations.js"></script>
+
+    <!-- Cesium Load Fallback -->
+    <script src="js/fallback.js"></script>
+
+    <!-- Image Generator -->
+    <script src="js/imageGenerator.js"></script>
+
+    <!-- Wikipedia Image Lookup -->
+    <script src="js/wikipediaImage.js"></script>
+
+    <!-- App Bootstrapper -->
+    <script src="js/app.js"></script>
+<div id="testResult" style="position:fixed;bottom:0;left:0;z-index:99999;background:#111;color:#0f0;padding:8px;font:12px monospace;"></div><script>
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(async () => {
+        try {
+            const entity = {
+                properties: {
+                    id: 't1', title: '2011 Tohoku Earthquake & Tsunami',
+                    description: 'Test event.', type: 'disaster', year: 2011,
+                    severity: 'Extreme', lat: 38.3, lng: 142.4
+                }
+            };
+            DrawerManager.open(entity);
+            await new Promise(r => setTimeout(r, 2500));
+            const img = document.getElementById('drawerImage');
+            const holder = document.getElementById('drawerImagePlaceholder');
+            DrawerManager.openModal(img);
+            const modalOpen = !document.getElementById('mediaModal').classList.contains('hidden');
+            DrawerManager.closeModal();
+            const modalClosed = document.getElementById('mediaModal').classList.contains('hidden');
+            document.getElementById('testResult').textContent = JSON.stringify({
+                imgSrcIsData: !!img && img.src.startsWith('data:image'),
+                imgDisplay: img ? getComputedStyle(img).display : 'none',
+                placeholderDisplay: holder ? getComputedStyle(holder).display : 'none',
+                modalOpen: modalOpen,
+                modalClosed: modalClosed
+            });
+        } catch (e) {
+            document.getElementById('testResult').textContent = 'ERROR: ' + e.message;
+        }
+    }, 3000);
+});
+</script></body>
+</html>

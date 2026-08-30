@@ -1,38 +1,48 @@
 const MarkerPulse = {
-    pulses: new Map(),
+    entities: new Set(),
+    running: false,
 
     create(entity, type) {
         if (!entity || !entity.point) return;
 
-        let color;
-        const hasConfig = typeof CONFIG !== 'undefined' && CONFIG.LAYERS;
-        switch(type) {
-            case 'war': color = hasConfig && CONFIG.LAYERS.wars ? CONFIG.LAYERS.wars.color : '#ff3b30'; break;
-            case 'disaster': color = hasConfig && CONFIG.LAYERS.disasters ? CONFIG.LAYERS.disasters.color : '#ffb400'; break;
-            case 'mystery': color = hasConfig && CONFIG.LAYERS.mysteries ? CONFIG.LAYERS.mysteries.color : '#bf5af2'; break;
-            default: color = '#00f2ff';
-        }
+        entity._pulseBase = entity.point.pixelSize || 6;
+        entity._pulsePhase = Math.random() * Math.PI * 2;
 
-        // We use GSAP to animate the pixelSize of the point
-        const pulseObj = { size: 8, alpha: 1 };
-        
-        const tl = gsap.timeline({ repeat: -1, yoyo: true });
-        tl.to(pulseObj, {
-            size: 16,
-            duration: 1.5,
-            ease: "sine.inOut",
-            onUpdate: () => {
-                entity.point.pixelSize = pulseObj.size;
-            }
-        });
+        this.entities.add(entity);
+        this.start();
+    },
 
-        this.pulses.set(entity.id, tl);
+    start() {
+        if (this.running) return;
+        this.running = true;
+
+        const tick = () => {
+            if (!this.running) return;
+            const t = performance.now() / 1000;
+
+            this.entities.forEach(entity => {
+                if (!entity.show || !entity.point || !entity.point.show) return;
+                entity.point.pixelSize = entity._pulseBase + Math.sin(t * 2 + entity._pulsePhase) * 4;
+            });
+
+            requestAnimationFrame(tick);
+        };
+
+        requestAnimationFrame(tick);
     },
 
     remove(entityId) {
-        if (this.pulses.has(entityId)) {
-            this.pulses.get(entityId).kill();
-            this.pulses.delete(entityId);
+        let removed = false;
+        this.entities.forEach(entity => {
+            if (entity.id === entityId) {
+                this.entities.delete(entity);
+                removed = true;
+            }
+        });
+        if (removed && this.entities.size === 0) {
+            this.running = false;
         }
     }
 };
+
+window.MarkerPulse = MarkerPulse;

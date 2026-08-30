@@ -49,3 +49,4 @@
     border: 1px solid rgb(255, 0, 0);
     border-radius: 2px;
 }
+.marker-symbol.live { background-color: var(--accent-amber); border: 1px solid #fff; box-shadow: 0 0 5px var(--accent-amber); }

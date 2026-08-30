@@ -20,8 +20,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.warn("ControlManager init failed:", e);
     }
 
+    await new Promise(resolve => requestAnimationFrame(resolve));
+
     const layerInitPromises = [];
-    const layerNames = ['DisastersLayer', 'WarsLayer', 'MysteryLayer', 'HistoricalLayer', 'BordersLayer'];
+    const layerNames = ['DisastersLayer', 'WarsLayer', 'MysteryLayer', 'HistoricalLayer', 'BordersLayer', 'LiveLayer'];
     layerNames.forEach(name => {
         if (typeof window[name] !== 'undefined' && window[name].init) {
             layerInitPromises.push(
@@ -105,7 +107,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.SearchEngine = SearchEngine;
     window.TimelineManager = TimelineManager;
     window.GlobeManager = GlobeManager;
-    window.App = { status: "Online", version: "1.0.0" };
+    window.LiveLayer = LiveLayer;
+    window.App = { status: "Online", version: "2.0.0" };
 });
 
 function updateLegendVisibility() {
@@ -117,7 +120,8 @@ function updateLegendVisibility() {
         'toggleAircraft': 'aircraft',
         'toggleSat': 'sat',
         'toggleWeather': 'weather',
-        'toggleBorders': 'borders'
+        'toggleBorders': 'borders',
+        'toggleLive': 'live'
     };
 
     Object.entries(toggleMap).forEach(([toggleId, layerClass]) => {
@@ -142,7 +146,8 @@ function syncAllLayerVisibility() {
         'toggleAircraft': AircraftLayer,
         'toggleSat': SatelliteLayer,
         'toggleWeather': WeatherLayer,
-        'toggleBorders': BordersLayer
+        'toggleBorders': BordersLayer,
+        'toggleLive': LiveLayer
     };
 
     Object.entries(toggleMap).forEach(([toggleId, layer]) => {
@@ -158,7 +163,7 @@ function syncAllLayerVisibility() {
 
 function updateGlobalStats() {
     let total = 0;
-    const layers = [DisastersLayer, WarsLayer, MysteryLayer, HistoricalLayer, BordersLayer, AircraftLayer, SatelliteLayer];
+    const layers = [DisastersLayer, WarsLayer, MysteryLayer, HistoricalLayer, BordersLayer, AircraftLayer, SatelliteLayer, LiveLayer];
     layers.forEach(l => {
         if (!l) return;
         if (l.visible && l.entities) {
@@ -180,7 +185,8 @@ function setupUIListeners() {
         { id: 'toggleAircraft', layer: AircraftLayer },
         { id: 'toggleSat', layer: SatelliteLayer },
         { id: 'toggleWeather', layer: WeatherLayer },
-        { id: 'toggleBorders', layer: BordersLayer }
+        { id: 'toggleBorders', layer: BordersLayer },
+        { id: 'toggleLive', layer: LiveLayer }
     ];
 
     toggles.forEach(t => {

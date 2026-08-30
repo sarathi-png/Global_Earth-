@@ -5,9 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Global 3D Intelligence Platform</title>
     
-    <!-- CesiumJS (CDN - full bundle with Workers/Assets/ThirdParty) -->
-    <script src="https://cesium.com/downloads/cesiumjs/releases/1.128/Build/Cesium/Cesium.js"></script>
-    <link href="https://cesium.com/downloads/cesiumjs/releases/1.128/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+    <!-- CesiumJS (local - full bundle with Workers/Assets/ThirdParty) -->
+    <script>window.CESIUM_BASE_URL = 'vendor/cesium/';</script>
+    <script src="vendor/cesium/Cesium.js"></script>
+    <link href="vendor/cesium/Widgets/widgets.css" rel="stylesheet">
     
     <!-- GSAP -->
     <script src="vendor/gsap/gsap.min.js"></script>
@@ -111,6 +112,13 @@
                     </label>
                     <span><i class="fas fa-globe-americas"></i> Balance of Power</span>
                 </div>
+                <div class="layer-item" data-layer="live">
+                    <label class="switch">
+                        <input type="checkbox" id="toggleLive">
+                        <span class="slider round"></span>
+                    </label>
+                    <span><i class="fas fa-broadcast-tower"></i> Live Events</span>
+                </div>
             </div>
             
             <div class="status-indicators">
@@ -121,6 +129,10 @@
                 <div class="status-item">
                     <span class="label">Markers:</span>
                     <span id="activeMarkerCount" class="value">0</span>
+                </div>
+                <div class="status-item">
+                    <span class="label">Live Data:</span>
+                    <span id="liveDataStatus" class="value offline">Offline</span>
                 </div>
             </div>
         </aside>
@@ -199,6 +211,10 @@
                 <span class="marker-symbol border-stable"></span>
                 <span>Region: Stable</span>
             </div>
+            <div class="legend-item" data-layer="live">
+                <span class="marker-symbol live"></span>
+                <span>Live Event (NASA/USGS)</span>
+            </div>
         </div>
 
         <!-- Custom Hover Popup -->
@@ -241,6 +257,10 @@
     <script src="layers/weatherLayer.js"></script>
     <script src="layers/bordersLayer.js"></script>
 
+    <!-- Live Data -->
+    <script src="js/liveApi.js"></script>
+    <script src="layers/liveLayer.js"></script>
+
     <!-- Search -->
     <script src="search/searchEngine.js"></script>
     <script src="search/searchUI.js"></script>
@@ -263,6 +283,9 @@
 
     <!-- Image Generator -->
     <script src="js/imageGenerator.js"></script>
+
+    <!-- Wikipedia Image Lookup -->
+    <script src="js/wikipediaImage.js"></script>
 
     <!-- App Bootstrapper -->
     <script src="js/app.js"></script>

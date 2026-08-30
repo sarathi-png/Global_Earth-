@@ -21,7 +21,13 @@ const UIAnimations = {
 
         toggleBtn.addEventListener('click', () => {
             const isCollapsing = !sidebar.classList.contains('collapsed');
-            
+
+            if (isCollapsing) {
+                sidebar.classList.add('collapsed');
+            } else {
+                sidebar.classList.remove('collapsed');
+            }
+
             if (typeof gsap !== 'undefined' && gsap.to) {
                 if (isCollapsing) {
                     gsap.to(sidebar, { width: 60, duration: 0.5, ease: "power3.inOut" });
