@@ -54,9 +54,12 @@ const CONFIG = {
     },
 
     OSIRIS: {
+        merged: true,
         enabled: false,
         url: (typeof window !== 'undefined' && window.location.origin) ? window.location.origin : 'http://localhost:8080',
-        layers: ['cctv','maritime','conflicts','news','fires','earthquakes']
+        layers: ['cctv','maritime','chokepoints','conflicts','flights','satellites','ships','news','fires','earthquakes'],
+        source: 'merged-native+proxy',
+        vendored: 'osiris/api + osiris/lib (see osiris-README.md)'
     },
 
     LAYERS: {
@@ -70,7 +73,7 @@ const CONFIG = {
         satellite: { enabled: false, color: '#ff9500', icon: 'fa-satellite' },
         live: { enabled: false, color: '#ffb400', icon: 'fa-broadcast-tower', refreshMinutes: 2 },
         streetview: { enabled: false, color: '#4ade80', icon: 'fa-street-view' },
-        osiris: { enabled: false, color: '#a78bfa', icon: 'fa-eye' }
+        osiris: { enabled: false, color: '#a78bfa', icon: 'fa-eye', merged: true, sublayers: { cctv: '#a78bfa', maritime: '#38bdf8', chokepoint: '#f59e0b', conflict: '#ef4444', flight: '#22c55e', satellite: '#f97316' } }
     }
 };
 

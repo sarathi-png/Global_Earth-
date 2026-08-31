@@ -173,7 +173,16 @@
                         <input type="checkbox" id="toggleOsiris">
                         <span class="slider round"></span>
                     </label>
-                    <span><i class="fas fa-eye"></i> OSIRIS Intel</span>
+                    <span title="Merged: CCTV • Maritime+Ships • Chokepoints • Conflicts • Flights • Satellites (native /api/osiris/* + proxy to :4000)"><i class="fas fa-eye"></i> OSIRIS Intel <small style="opacity:0.6;font-size:10px;">MERGED</small></span>
+                </div>
+                <div class="layer-item" style="padding-left:28px;opacity:0.7;font-size:11px;flex-direction:column;align-items:flex-start;gap:4px;border-left:2px solid #a78bfa;margin-left:10px;">
+                    <span style="color:#a78bfa"><i class="fas fa-video"></i> CCTV</span>
+                    <span style="color:#38bdf8"><i class="fas fa-anchor"></i> Ports & Ships</span>
+                    <span style="color:#f59e0b"><i class="fas fa-exclamation-triangle"></i> Chokepoints</span>
+                    <span style="color:#ef4444"><i class="fas fa-crosshairs"></i> Conflicts</span>
+                    <span style="color:#22c55e"><i class="fas fa-plane"></i> Flights</span>
+                    <span style="color:#f97316"><i class="fas fa-satellite"></i> Satellites</span>
+                    <span style="font-size:10px;opacity:0.6">vendored: osiris/api + lib • <a href="osiris-README.md" target="_blank" style="color:#a78bfa">docs</a> • <a href="https://github.com/simplifaisoul/osiris" target="_blank" style="color:#a78bfa">upstream</a></span>
                 </div>
             </div>
             
@@ -290,7 +299,31 @@
             </div>
             <div class="legend-item" data-layer="osiris">
                 <span class="marker-symbol" style="background:#a78bfa;border-radius:50%;"></span>
-                <span>OSIRIS CCTV / Maritime / Conflicts</span>
+                <span>OSIRIS CCTV</span>
+            </div>
+            <div class="legend-item" data-layer="osiris" style="opacity:0.95">
+                <span class="marker-symbol" style="background:#38bdf8;border-radius:2px;"></span>
+                <span>Ports / Naval</span>
+            </div>
+            <div class="legend-item" data-layer="osiris" style="opacity:0.95">
+                <span class="marker-symbol" style="background:#f59e0b;border-radius:50%;border:2px solid #fff;"></span>
+                <span>Chokepoints</span>
+            </div>
+            <div class="legend-item" data-layer="osiris" style="opacity:0.95">
+                <span class="marker-symbol" style="background:#ef4444;border-radius:50%;"></span>
+                <span>Conflict Zones + Live Events</span>
+            </div>
+            <div class="legend-item" data-layer="osiris" style="opacity:0.95">
+                <span class="marker-symbol" style="background:#22c55e;border-radius:50%;"></span>
+                <span>Flights (ADS-B)</span>
+            </div>
+            <div class="legend-item" data-layer="osiris" style="opacity:0.95">
+                <span class="marker-symbol" style="background:#f97316;border-radius:2px;"></span>
+                <span>Satellites (CelesTrak)</span>
+            </div>
+            <div class="legend-item" data-layer="osiris" style="opacity:0.7;font-size:11px;border-top:1px dashed rgba(255,255,255,0.15);padding-top:6px;margin-top:4px;">
+                <span style="font-size:10px;">MERGED</span>
+                <span style="font-size:10px;">native /api/osiris/* + fallback :4000 • <a href="https://github.com/simplifaisoul/osiris" target="_blank" style="color:#a78bfa;">OSIRIS</a></span>
             </div>
         </div>
 
