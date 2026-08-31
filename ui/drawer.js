@@ -48,6 +48,9 @@ const DrawerManager = {
         const year = this.getVal(props.year) || '-';
         const severity = this.getVal(props.severity) || 'Normal';
         const wikiQuery = this.getVal(props.wikiQuery) || title;
+        const lat = this.getVal(props.lat);
+        const lng = this.getVal(props.lng);
+        const source = this.getVal(props.source) || '';
 
         const titleEl = document.getElementById('drawerTitle');
         const descEl = document.getElementById('drawerDescription');
@@ -58,7 +61,7 @@ const DrawerManager = {
         const placeholderEl = document.getElementById('drawerImagePlaceholder');
 
         if (titleEl) titleEl.innerText = title;
-        if (descEl) descEl.innerText = description;
+        if (descEl) descEl.innerHTML = this.linkify(description) + (source ? `<br><span style="color:#888;font-size:11px;">Source: ${source}</span>` : '');
         if (typeEl) typeEl.innerText = type;
         if (yearEl) yearEl.innerText = year;
         if (sevEl) sevEl.innerText = severity;
@@ -69,10 +72,73 @@ const DrawerManager = {
             this.loadImage(type, wikiQuery, year, imgEl, placeholderEl, token);
         }
 
+        // Street View & OSIRIS link area
+        this.renderExtra(lat, lng, title, type, entity);
+
         if (!this.drawer) return;
         this.drawer.style.transform = '';
         this.drawer.classList.add('open');
         this.isOpen = true;
+    },
+
+    linkify(text) {
+        if (!text) return '';
+        return text.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" style="color:#4ade80;word-break:break-all;">$1</a>');
+    },
+
+    renderExtra(lat, lng, title, type, entity) {
+        let extra = document.getElementById('drawerExtra');
+        if (!extra) {
+            extra = document.createElement('div');
+            extra.id = 'drawerExtra';
+            extra.style.cssText = 'margin-top:14px;display:flex;flex-direction:column;gap:10px;';
+            const body = document.querySelector('#rightDrawer .drawer-body');
+            if (body) body.appendChild(extra);
+        }
+        extra.innerHTML = '';
+        if (lat != null && lng != null && typeof lat === 'number' && typeof lng === 'number') {
+            // Street View card (Ion token overlay + Google fallback)
+            const svBtn = document.createElement('button');
+            svBtn.innerHTML = '<i class="fas fa-street-view"></i> Street View';
+            svBtn.style.cssText = 'width:100%;padding:10px;border-radius:8px;border:1px solid rgba(74,222,128,0.3);background:rgba(74,222,128,0.12);color:#4ade80;cursor:pointer;font-size:13px;';
+            svBtn.onclick = () => this.openStreetView(lat, lng, title);
+            extra.appendChild(svBtn);
+            // OSIRIS link if available
+            if (typeof OsirisLayer !== 'undefined') {
+                const osirisLink = document.createElement('a');
+                osirisLink.href = `https://github.com/simplifaisoul/osiris`;
+                osirisLink.target = '_blank';
+                osirisLink.innerHTML = '<i class="fas fa-external-link-alt"></i> OSIRIS Intel — sensordata';
+                osirisLink.style.cssText = 'display:block;text-align:center;padding:8px;border-radius:8px;background:rgba(167,139,250,0.12);border:1px solid rgba(167,139,250,0.3);color:#a78bfa;font-size:12px;text-decoration:none;';
+                extra.appendChild(osirisLink);
+            }
+            // Coords footer
+            const coordEl = document.createElement('div');
+            coordEl.style.cssText = 'font-size:11px;color:#666;text-align:center;';
+            coordEl.textContent = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+            extra.appendChild(coordEl);
+        }
+        // Feed link if present (CCTV etc)
+        const feedUrl = entity.properties && this.getVal(entity.properties.feed_url);
+        if (feedUrl) {
+            const feedBtn = document.createElement('a');
+            feedBtn.href = feedUrl; feedBtn.target = '_blank';
+            feedBtn.textContent = 'View Live Feed';
+            feedBtn.style.cssText = 'display:block;text-align:center;padding:10px;border-radius:8px;background:#a78bfa;color:#fff;text-decoration:none;font-weight:600;';
+            extra.appendChild(feedBtn);
+        }
+    },
+
+    openStreetView(lat, lng, title) {
+        if (typeof StreetViewLayer !== 'undefined' && StreetViewLayer.openPanorama) {
+            const html = StreetViewLayer.openPanorama(lat, lng, title);
+            if (this.modalBody) {
+                this.modalBody.innerHTML = html;
+                this.modal.classList.remove('hidden');
+                return;
+            }
+        }
+        window.open(`https://www.google.com/maps/@${lat},${lng},3a,75y,0h,90t`, '_blank');
     },
 
     async loadImage(type, title, year, imgEl, placeholderEl, token) {
@@ -81,7 +147,19 @@ const DrawerManager = {
 
         let imageUrl = null;
         if (navigator.onLine && typeof WikipediaImage !== 'undefined') {
-            imageUrl = await WikipediaImage.getThumbnail(wikiQuery);
+            imageUrl = await WikipediaImage.getThumbnail(title);
+        }
+        // Chain 2: Wikimedia Commons search (free, no auth)
+        if (!imageUrl && navigator.onLine && typeof WikimediaCommons !== 'undefined') {
+            const kw = (typeof WikipediaImage !== 'undefined' && WikipediaImage.extractKeywords)
+                ? WikipediaImage.extractKeywords(title) : title;
+            imageUrl = await WikimediaCommons.searchImage(kw);
+        }
+        // Chain 3: Unsplash via server proxy
+        if (!imageUrl && navigator.onLine && typeof UnsplashImage !== 'undefined') {
+            const kw = (typeof WikipediaImage !== 'undefined' && WikipediaImage.extractKeywords)
+                ? WikipediaImage.extractKeywords(title) : title;
+            imageUrl = await UnsplashImage.searchImage(kw);
         }
 
         if (token !== this._loadToken) return;

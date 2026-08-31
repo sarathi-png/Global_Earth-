@@ -38,7 +38,7 @@ const URLStateManager = {
                 'mysteries': 'toggleMysteries', 'history': 'toggleHistory',
                 'aircraft': 'toggleAircraft', 'sat': 'toggleSat',
                 'weather': 'toggleWeather', 'borders': 'toggleBorders',
-                'live': 'toggleLive', 'gibs': 'toggleGIBS'
+                'live': 'toggleLive', 'gibs': 'toggleGIBS', 'streetview': 'toggleStreetView', 'osiris': 'toggleOsiris'
             };
             const layers = this.params.get('layers').split(',');
             Object.entries(layerMap).forEach(([key, toggleId]) => {
@@ -63,13 +63,7 @@ const URLStateManager = {
             'toggleAircraft': 'aircraft', 'toggleSat': 'sat',
             'toggleWeather': 'weather', 'toggleBorders': 'borders',
             'toggleLive': 'live', 'toggleGIBS': 'gibs', 'toggleHeatmap': 'heatmap', 'toggleRipple': 'ripple', 'toggleDayNight': 'daynight',
-        'toggleDayNight': 'daynight',
-        'toggleRipple': 'ripple', 'toggleDayNight': 'daynight',
-        'toggleDayNight': 'daynight',
-        'toggleHeatmap': 'heatmap', 'toggleRipple': 'ripple', 'toggleDayNight': 'daynight',
-        'toggleDayNight': 'daynight',
-        'toggleRipple': 'ripple', 'toggleDayNight': 'daynight',
-        'toggleDayNight': 'daynight'
+            'toggleStreetView': 'streetview', 'toggleOsiris': 'osiris'
         };
         Object.entries(layerMap).forEach(([toggleId, key]) => {
             const el = document.getElementById(toggleId);
@@ -178,9 +172,7 @@ function updateLegendVisibility() {
         'toggleLive': 'live',
         'toggleGIBS': 'gibs',
         'toggleHeatmap': 'heatmap', 'toggleRipple': 'ripple', 'toggleDayNight': 'daynight',
-        'toggleDayNight': 'daynight',
-        'toggleRipple': 'ripple', 'toggleDayNight': 'daynight',
-        'toggleDayNight': 'daynight'
+        'toggleStreetView': 'streetview', 'toggleOsiris': 'osiris'
     };
 
     Object.entries(toggleMap).forEach(([toggleId, layerClass]) => {
@@ -210,7 +202,9 @@ function syncAllLayerVisibility() {
         'toggleGIBS': null,
         'toggleHeatmap': HeatmapLayer,
         'toggleRipple': RippleArcLayer,
-        'toggleDayNight': DayNightLayer
+        'toggleDayNight': DayNightLayer,
+        'toggleStreetView': StreetViewLayer,
+        'toggleOsiris': OsirisLayer
     };
 
     Object.entries(toggleMap).forEach(([toggleId, layer]) => {
@@ -230,7 +224,7 @@ function updateGlobalStats() {
     if (_statsTimer) cancelAnimationFrame(_statsTimer);
     _statsTimer = requestAnimationFrame(() => {
         let total = 0;
-        const layers = [DisastersLayer, WarsLayer, MysteryLayer, HistoricalLayer, BordersLayer, AircraftLayer, SatelliteLayer, LiveLayer, HeatmapLayer, RippleArcLayer];
+        const layers = [DisastersLayer, WarsLayer, MysteryLayer, HistoricalLayer, BordersLayer, AircraftLayer, SatelliteLayer, LiveLayer, HeatmapLayer, RippleArcLayer, OsirisLayer];
         layers.forEach(l => {
             if (!l) return;
             if (l.visible && l.entities) {
@@ -258,7 +252,9 @@ function setupUIListeners() {
         { id: 'toggleGIBS', layer: null },
         { id: 'toggleHeatmap', layer: HeatmapLayer },
         { id: 'toggleRipple', layer: RippleArcLayer },
-        { id: 'toggleDayNight', layer: DayNightLayer }
+        { id: 'toggleDayNight', layer: DayNightLayer },
+        { id: 'toggleStreetView', layer: StreetViewLayer },
+        { id: 'toggleOsiris', layer: OsirisLayer }
     ];
 
     toggles.forEach(t => {

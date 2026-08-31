@@ -53,11 +53,12 @@ function checkRateLimit(ip) {
   return entry.count <= RATE_LIMIT;
 }
 
-function fetchUrl(targetUrl, timeoutMs = 15000) {
+function fetchUrl(targetUrl, timeoutMs = 15000, extraHeaders) {
   return new Promise((resolve, reject) => {
     const parsedUrl = new URL(targetUrl);
     const client = parsedUrl.protocol === 'https:' ? https : http;
-    const req = client.get(targetUrl, { timeout: timeoutMs, headers: { 'User-Agent': 'GlobalEarth/2.0' } }, (res) => {
+    const headers = { 'User-Agent': 'GlobalEarth/2.0', ...(extraHeaders || {}) };
+    const req = client.get(targetUrl, { timeout: timeoutMs, headers }, (res) => {
       let data = '';
       res.on('data', chunk => { data += chunk; });
       res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, body: data }));
@@ -66,6 +67,9 @@ function fetchUrl(targetUrl, timeoutMs = 15000) {
     req.on('timeout', () => { req.destroy(); reject(new Error('Timeout')); });
   });
 }
+
+const UNSPLASH_KEY = process.env.UNSPLASH_ACCESS_KEY || '';
+const OSIRIS_URL = process.env.OSIRIS_URL || 'http://localhost:4000';
 
 const proxyEndpoints = {
   '/api/eonet': 'https://eonet.gsfc.nasa.gov/api/v3/events?limit=200&days=30',
@@ -77,6 +81,56 @@ const proxyEndpoints = {
   '/api/airplanes': null,
   '/api/celestrak': null
 };
+
+function handleUnsplash(req, res, parsedUrl) {
+  if (!UNSPLASH_KEY) {
+    res.writeHead(503, { 'Content-Type': 'application/json', ...getCorsHeaders() });
+    res.end(JSON.stringify({ error: 'UNSPLASH_ACCESS_KEY not configured', results: [] }));
+    return;
+  }
+  const q = parsedUrl.query.query || '';
+  if (!q) {
+    res.writeHead(400, { 'Content-Type': 'application/json', ...getCorsHeaders() });
+    res.end(JSON.stringify({ error: 'Missing query', results: [] }));
+    return;
+  }
+  const per_page = Math.min(parseInt(parsedUrl.query.per_page || '3', 10) || 3, 10);
+  const target = `https://api.unsplash.com/search/photos?query=${encodeURIComponent(q)}&per_page=${per_page}&orientation=landscape`;
+  const clientIp = req.socket.remoteAddress || 'unknown';
+  if (!checkRateLimit(clientIp)) {
+    res.writeHead(429, { 'Content-Type': 'application/json', ...getCorsHeaders() });
+    res.end(JSON.stringify({ error: 'Rate limit' }));
+    return;
+  }
+  const cacheKey = getCacheKey('unsplash_' + q + '_' + per_page);
+  const cached = cache.get(cacheKey);
+  if (cached && Date.now() - cached.time < CACHE_TTL) {
+    res.writeHead(200, { 'Content-Type': 'application/json', ...getCorsHeaders() });
+    res.end(cached.data);
+    return;
+  }
+  fetchUrl(target, 10000, { 'Authorization': `Client-ID ${UNSPLASH_KEY}` }).then(result => {
+    if (result.status === 200) cache.set(cacheKey, { data: result.body, time: Date.now() });
+    res.writeHead(result.status, { 'Content-Type': 'application/json', ...getCorsHeaders() });
+    res.end(result.body);
+  }).catch(e => {
+    res.writeHead(502, { 'Content-Type': 'application/json', ...getCorsHeaders() });
+    res.end(JSON.stringify({ error: e.message, results: [] }));
+  });
+}
+
+function handleOsirisProxy(req, res) {
+  const subPath = req.url.replace(/^\/api\/osiris\//, '/api/');
+  const target = OSIRIS_URL + subPath;
+  fetchUrl(target, 15000).then(result => {
+    const ct = result.headers && result.headers['content-type'] ? result.headers['content-type'] : 'application/json';
+    res.writeHead(result.status, { 'Content-Type': ct, ...getCorsHeaders() });
+    res.end(result.body);
+  }).catch(e => {
+    res.writeHead(502, { 'Content-Type': 'application/json', ...getCorsHeaders() });
+    res.end(JSON.stringify({ error: 'OSiris proxy failed', message: e.message, hint: 'Is OSiris running on ' + OSIRIS_URL + ' ?' }));
+  });
+}
 
 async function handleProxy(req, res, apiPath) {
   const clientIp = req.socket.remoteAddress || 'unknown';
@@ -140,9 +194,12 @@ const server = http.createServer(async (req, res) => {
   if (safePath === 'api/stream') { handleSSE(req, res); return; }
   if (safePath === 'api/health') {
     res.writeHead(200, { 'Content-Type': 'application/json', ...getCorsHeaders() });
-    res.end(JSON.stringify({ status: 'ok', uptime: process.uptime(), sseClients: sseClients.size, cacheEntries: cache.size }));
+    res.end(JSON.stringify({ status: 'ok', uptime: process.uptime(), sseClients: sseClients.size, cacheEntries: cache.size, osiris: OSIRIS_URL, unsplash: !!UNSPLASH_KEY }));
     return;
   }
+
+  if (safePath === 'api/unsplash') { handleUnsplash(req, res, parsedUrl); return; }
+  if (safePath.startsWith('api/osiris/')) { handleOsirisProxy(req, res); return; }
 
   if (proxyEndpoints['/' + safePath]) {
     const targetUrl = proxyEndpoints['/' + safePath];
@@ -186,7 +243,9 @@ setInterval(() => {
 
 server.listen(PORT, () => {
   console.log(`Global Earth server running at http://localhost:${PORT}/`);
-  console.log(`API proxy: /api/eonet, /api/usgs, /api/gdacs, /api/noaa, /api/fema`);
+  console.log(`API proxy: /api/eonet, /api/usgs, /api/gdacs, /api/noaa, /api/fema, /api/unsplash, /api/osiris/*`);
   console.log(`SSE stream: /api/stream`);
   console.log(`Health check: /api/health`);
+  if (!UNSPLASH_KEY) console.log('Note: UNSPLASH_ACCESS_KEY not set - /api/unsplash will return 503');
+  console.log(`OSiris proxy target: ${OSIRIS_URL}`);
 });

@@ -161,6 +161,20 @@
                     </label>
                     <span><i class="fas fa-moon"></i> Day/Night Terminator</span>
                 </div>
+                <div class="layer-item" data-layer="streetview">
+                    <label class="switch">
+                        <input type="checkbox" id="toggleStreetView">
+                        <span class="slider round"></span>
+                    </label>
+                    <span><i class="fas fa-street-view"></i> Street View (Ion)</span>
+                </div>
+                <div class="layer-item" data-layer="osiris">
+                    <label class="switch">
+                        <input type="checkbox" id="toggleOsiris">
+                        <span class="slider round"></span>
+                    </label>
+                    <span><i class="fas fa-eye"></i> OSIRIS Intel</span>
+                </div>
             </div>
             
             <div class="status-indicators">
@@ -270,6 +284,14 @@
                 <span class="marker-symbol" style="background: radial-gradient(circle, rgba(255,59,48,0.4) 0%, transparent 70%); border-radius: 50%; border: 1px solid rgba(255,59,48,0.5);"></span>
                 <span>Ripple Rings (Critical Events)</span>
             </div>
+            <div class="legend-item" data-layer="streetview">
+                <span class="marker-symbol" style="background:#4ade80;border-radius:2px;"></span>
+                <span>Street View (Ion Bing)</span>
+            </div>
+            <div class="legend-item" data-layer="osiris">
+                <span class="marker-symbol" style="background:#a78bfa;border-radius:50%;"></span>
+                <span>OSIRIS CCTV / Maritime / Conflicts</span>
+            </div>
         </div>
 
         <!-- Custom Hover Popup -->
@@ -368,6 +390,12 @@
 
     <!-- Wikipedia Image Lookup -->
     <script src="js/wikipediaImage.js?v=2.1" defer></script>
+    <script src="js/wikimediaCommons.js?v=2.1" defer></script>
+    <script src="js/unsplashImage.js?v=2.1" defer></script>
+
+    <!-- StreetView + OSIRIS -->
+    <script src="layers/streetViewLayer.js?v=2.1" defer></script>
+    <script src="layers/osirisLayer.js?v=2.1" defer></script>
 
     <!-- Notifications -->
     <script src="js/notifications.js?v=2.1" defer></script>
