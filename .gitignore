@@ -16,3 +16,7 @@ assets/textures/
 *.ttf
 *.jpg
 *.png
+
+# Secrets / local env
+.env
+.env.local

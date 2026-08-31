@@ -7,6 +7,24 @@ const url = require('url');
 const ROOT = __dirname;
 const PORT = parseInt(process.argv[2], 10) || 8080;
 
+// Load .env manually (no dotenv dependency)
+(function loadDotEnv() {
+  try {
+    const envPath = path.join(ROOT, '.env');
+    if (!fs.existsSync(envPath)) return;
+    const lines = fs.readFileSync(envPath, 'utf8').split(/\r?\n/);
+    for (const line of lines) {
+      const t = line.trim();
+      if (!t || t.startsWith('#')) continue;
+      const eq = t.indexOf('=');
+      if (eq === -1) continue;
+      const k = t.slice(0, eq).trim();
+      const v = t.slice(eq + 1).trim();
+      if (!(k in process.env)) process.env[k] = v;
+    }
+  } catch (_) {}
+})();
+
 const mime = {
   '.html': 'text/html', '.css': 'text/css', '.js': 'application/javascript',
   '.cjs': 'application/javascript', '.mjs': 'application/javascript',
@@ -187,9 +205,9 @@ const server = http.createServer(async (req, res) => {
   }
 
   const parsedUrl = url.parse(req.url, true);
-  let safePath = path.normalize(decodeURIComponent(parsedUrl.pathname));
-  if (safePath === '/' || safePath === '\\' || safePath === '.') safePath = 'index.html';
-  if (safePath.startsWith('/') || safePath.startsWith('\\')) safePath = safePath.slice(1);
+  let safePath = path.normalize(decodeURIComponent(parsedUrl.pathname)).replace(/\\/g, '/');
+  if (safePath === '/' || safePath === '.') safePath = 'index.html';
+  if (safePath.startsWith('/')) safePath = safePath.slice(1);
 
   if (safePath === 'api/stream') { handleSSE(req, res); return; }
   if (safePath === 'api/health') {
