@@ -106,7 +106,8 @@ const GlobeManager = {
         const allLayers = [
             window.DisastersLayer, window.WarsLayer, window.MysteryLayer,
             window.HistoricalLayer, window.AircraftLayer, window.SatelliteLayer,
-            window.WeatherLayer, window.LiveLayer, window.BordersLayer
+            window.WeatherLayer, window.LiveLayer, window.BordersLayer,
+            window.OsirisLayer, window.HeatmapLayer, window.RippleArcLayer, window.DayNightLayer, window.StreetViewLayer
         ];
         allLayers.forEach(layer => {
             if (!layer || !layer.entities) return;
@@ -163,7 +164,8 @@ const GlobeManager = {
                 const allLayers = [
                     window.DisastersLayer, window.WarsLayer, window.MysteryLayer,
                     window.HistoricalLayer, window.AircraftLayer, window.SatelliteLayer,
-                    window.WeatherLayer, window.LiveLayer, window.BordersLayer
+                    window.WeatherLayer, window.LiveLayer, window.BordersLayer,
+                    window.OsirisLayer, window.HeatmapLayer, window.RippleArcLayer, window.DayNightLayer, window.StreetViewLayer
                 ];
 
                 allLayers.forEach(layer => {

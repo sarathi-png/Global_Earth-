@@ -154,13 +154,37 @@ const NotificationSystem = {
         this.feedItems.forEach(item => this.renderFeedItem(item, false));
     },
 
-    toggleFeed() {
+    async toggleFeed() {
         if (!this.feedPanel) return;
         var isOpen = this.feedPanel.classList.toggle('feed-open');
         if (isOpen) {
+            // If opened and we have no feed items yet, fetch live data (user asked: keep toggle + map live data)
+            if (this.feedItems.length === 0) {
+                try {
+                    // Prefer already-fetched LiveLayer data if available
+                    if (typeof LiveLayer !== 'undefined' && Array.isArray(LiveLayer._lastEvents) && LiveLayer._lastEvents.length) {
+                        this.processEvents(LiveLayer._lastEvents);
+                    } else if (typeof LiveApi !== 'undefined' && LiveApi.fetchAll) {
+                        if (navigator.onLine) {
+                            // Show loading placeholder
+                            if (this.feedList) this.feedList.innerHTML = '<div style="padding:16px;color:#888;text-align:center;">Loading live events…</div>';
+                            const { events } = await LiveApi.fetchAll();
+                            if (events && events.length) {
+                                if (typeof LiveLayer !== 'undefined') LiveLayer._lastEvents = events;
+                                // Clear placeholder before processing (renderFeedItem will populate)
+                                if (this.feedList) this.feedList.innerHTML = '';
+                                this.processEvents(events);
+                            } else {
+                                if (this.feedList) this.feedList.innerHTML = '<div style="padding:16px;color:#888;text-align:center;">No recent live events — check connection or try again.</div>';
+                            }
+                        }
+                    }
+                } catch (e) { console.warn('feed live fetch failed', e); }
+            }
             this.renderFullFeed();
-            this.feedBadge = 0;
-            this.updateBadge();
+            // Hide badge when feed is opened (do NOT overwrite feedBadge DOM ref)
+            if (this.feedBadge && this.feedBadge.style) this.feedBadge.style.display = 'none';
+            if (this.feedCount) this.feedCount.textContent = this.feedItems.length;
         }
     },
 

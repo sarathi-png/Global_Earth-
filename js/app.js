@@ -104,7 +104,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     setTimeout(() => {
         const layerInitPromises = [];
-        const layerNames = ['DisastersLayer', 'WarsLayer', 'MysteryLayer', 'HistoricalLayer', 'BordersLayer', 'LiveLayer'];
+        const layerNames = ['DisastersLayer', 'WarsLayer', 'MysteryLayer', 'HistoricalLayer', 'BordersLayer', 'LiveLayer', 'StreetViewLayer', 'OsirisLayer', 'RippleArcLayer', 'DayNightLayer'];
         layerNames.forEach(name => {
             if (typeof window[name] !== 'undefined' && window[name].init) {
                 layerInitPromises.push(
@@ -114,7 +114,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         Promise.allSettled(layerInitPromises).then(() => {
-            ['AircraftLayer', 'SatelliteLayer', 'WeatherLayer'].forEach(name => {
+            ['AircraftLayer', 'SatelliteLayer', 'WeatherLayer', 'HeatmapLayer'].forEach(name => {
                 if (typeof window[name] !== 'undefined' && window[name].init) {
                     try { window[name].init(); } catch (e) { console.warn(`${name} init failed:`, e); }
                 }

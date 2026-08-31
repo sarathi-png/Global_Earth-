@@ -86,7 +86,7 @@ const DayNightLayer = {
 
         var nightLng = sun.longitude + 180;
         if (nightLng > 180) nightLng -= 360;
-        var nightVertices = [];
+        var nightPositions = [];
         for (var n = 0; n <= 36; n++) {
             var nAngle = (n / 36) * 2 * Math.PI;
             var nDeclRad = sun.declination * Math.PI / 180;
@@ -98,13 +98,13 @@ const DayNightLayer = {
                 Math.sin(nAngle) * Math.cos(nDeclRad),
                 Math.cos(nAngle)
             );
-            nightVertices.push(nLng * 180 / Math.PI, nLat * 180 / Math.PI);
+            nightPositions.push(Cesium.Cartesian3.fromDegrees(nLng * 180 / Math.PI, nLat * 180 / Math.PI));
         }
 
         this._darkPolygon = GlobeManager.viewer.entities.add({
             polygon: {
                 hierarchy: new Cesium.CallbackProperty(function() {
-                    return nightVertices;
+                    return new Cesium.PolygonHierarchy(nightPositions);
                 }, false),
                 material: new Cesium.Color(0, 0, 0.15, 0.35),
                 outline: false
