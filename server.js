@@ -25,6 +25,32 @@ const PORT = parseInt(process.argv[2], 10) || 8080;
   } catch (_) {}
 })();
 
+// ── Inject .env keys into js/config.js (browser has no process.env) ──
+let _injectedConfigCache = null;
+function getInjectedConfigJs() {
+  if (_injectedConfigCache !== null) return _injectedConfigCache;
+  try {
+    const cfgPath = path.join(ROOT, 'js', 'config.js');
+    let src = fs.readFileSync(cfgPath, 'utf8');
+    const cesiumTok = process.env.CESIUM_TOKEN || '';
+    const firmsKey = process.env.FIRMS_MAP_KEY || '';
+    const nasaKey = process.env.NASA_API_KEY || 'DEMO_KEY';
+    // Replace the browser-evaluated process.env expressions with literal strings
+    // js/config.js has: (typeof process !== 'undefined' && process.env && process.env.CESIUM_TOKEN) || ''
+    src = src.replace("(typeof process !== 'undefined' && process.env && process.env.CESIUM_TOKEN) || ''", JSON.stringify(cesiumTok));
+    src = src.replace("(typeof process !== 'undefined' && process.env && process.env.FIRMS_MAP_KEY) || ''", JSON.stringify(firmsKey));
+    src = src.replace("(typeof process !== 'undefined' && process.env && process.env.NASA_API_KEY) || 'DEMO_KEY'", JSON.stringify(nasaKey));
+    // Server-side injection marker (helps verify it was injected)
+    if (cesiumTok || firmsKey) {
+      src += `\n// [server-injected] CESIUM_TOKEN:${cesiumTok ? 'set' : 'empty'} FIRMS_MAP_KEY:${firmsKey ? 'set' : 'empty'} NASA_API_KEY:${nasaKey !== 'DEMO_KEY' ? 'set' : 'DEMO_KEY'}\n`;
+    }
+    _injectedConfigCache = src;
+  } catch (_) {
+    _injectedConfigCache = null;
+  }
+  return _injectedConfigCache;
+}
+
 const mime = {
   '.html': 'text/html', '.css': 'text/css', '.js': 'application/javascript',
   '.cjs': 'application/javascript', '.mjs': 'application/javascript',
@@ -422,6 +448,22 @@ const server = http.createServer(async (req, res) => {
     res.end(JSON.stringify({ error: 'Unknown API endpoint', merged: 'osiris+global-earth', hint: 'try /api/osiris/maritime, /api/osiris/conflicts, /api/osiris/cctv, /api/health' }));
     return;
   }
+  // Server-side injection for js/config.js — inject .env keys so browser gets real values
+  if (safePath === 'js/config.js') {
+    const injected = getInjectedConfigJs();
+    if (injected !== null) {
+      res.writeHead(200, {
+        'Content-Type': 'application/javascript',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        'X-Content-Type-Options': 'nosniff',
+        ...getCorsHeaders()
+      });
+      res.end(injected);
+      return;
+    }
+  }
   const filePath = path.join(ROOT, safePath);
   fs.stat(filePath, (err, stat) => {
     if (err || !stat.isFile()) {
@@ -456,5 +498,10 @@ server.listen(PORT, () => {
   console.log(`SSE stream: /api/stream`);
   console.log(`Health check: /api/health`);
   if (!UNSPLASH_KEY) console.log('Note: UNSPLASH_ACCESS_KEY not set - /api/unsplash will return 503');
+  else console.log('Unsplash: key set');
+  // Log config injection status (do not print secret values)
+  const cesiumSet = !!(process.env.CESIUM_TOKEN && process.env.CESIUM_TOKEN.length > 20);
+  const firmsSet = !!(process.env.FIRMS_MAP_KEY && process.env.FIRMS_MAP_KEY.length > 5);
+  console.log(`Config injection: CESIUM_TOKEN ${cesiumSet ? 'set' : 'empty'} | FIRMS_MAP_KEY ${firmsSet ? 'set' : 'empty'} → js/config.js will be served injected`);
   console.log(`OSiris proxy target (fallback): ${OSIRIS_URL}`);
 });
