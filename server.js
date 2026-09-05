@@ -463,7 +463,7 @@ const server = http.createServer(async (req, res) => {
     proxyReq.on('error', (e) => {
       console.warn('[OSIRIS EMBED PROXY ERROR]', e.message, 'target:', proxyTarget);
       res.writeHead(502, { 'Content-Type': 'text/html', ...getCorsHeaders() });
-      res.end('<!DOCTYPE html><html><head><meta charset="utf-8"><title>OSIRIS — Not Ready</title><style>body{background:#0f0f23;color:#fff;font-family:sans-serif;padding:60px;text-align:center;line-height:1.6;}</style></head><body><h1>🛰 OSIRIS — Build Required</h1><p>The embedded OSIRIS server (<code>osiris-embed/server.js</code>) is not running or the build is missing.</p><ol style="text-align:left;display:inline-block;margin-top:20px;font-size:14px;line-height:2;color:#ccc;"><li>Run <code>npm install</code> in <code>D:\Projects\osiris</code></li><li>Run <code>npm run build</code> in <code>D:\Projects\osiris</code></li><li>Copy <code>.next/standalone/osiris/*</code> to <code>D:\Projects\global-earth-project\osiris-embed/</code></li><li>Restart the server (<code>node server.js</code>)</li></ol><a href="/" style="display:inline-block;margin-top:30px;padding:10px 20px;background:#a78bfa;color:#fff;border-radius:6px;text-decoration:none;font-weight:600;">← Back to Global Earth</a></body></html>');
+      res.end('<!DOCTYPE html><html><head><meta charset="utf-8"><title>OSIRIS — Not Ready</title><style>body{background:#0f0f23;color:#fff;font-family:sans-serif;padding:60px;text-align:center;line-height:1.6;}</style></head><body><h1>🛰 OSIRIS — Build Required</h1><p>The embedded OSIRIS server (<code>osiris-embed/server.js</code>) is not running or the build is missing.</p><ol style="text-align:left;display:inline-block;margin-top:20px;font-size:14px;line-height:2;color:#ccc;"><li>Run <code>npm install</code> in <code>D:\\Projects\\osiris</code></li><li>Run <code>npm run build</code> in <code>D:\\Projects\\osiris</code></li><li>Copy <code>.next/standalone/osiris/*</code> to <code>D:\\Projects\\global-earth-project\\osiris-embed/</code></li><li>Restart the server (<code>node server.js</code>)</li><li>If it still fails, a stale process may hold port 4000 — check with <code>Get-NetTCPConnection -LocalPort 4000</code> and stop it, or set <code>EMBED_PORT</code> to a free port</li></ol><p style="color:#888;font-size:13px;">Note: on hosted deploys (Render) <code>osiris-embed/</code> is not bundled — the merged <code>/api/osiris/*</code> endpoints keep working, but the full OSIRIS UI needs a local run.</p><a href="/" style="display:inline-block;margin-top:30px;padding:10px 20px;background:#a78bfa;color:#fff;border-radius:6px;text-decoration:none;font-weight:600;">← Back to Global Earth</a></body></html>');
     });
     return;
   }
@@ -553,23 +553,51 @@ process.on('uncaughtException', e=>{ console.error('uncaught', e && e.stack || e
 process.on('unhandledRejection', e=>{ console.error('unhandledRejection', e && e.stack || e); });
 
 // Auto-start embedded OSIRIS on port 4000 (only once)
-function startEmbeddedOsiris() {
+// Preflight: detached children outlive the main server, so a previous run may
+// still hold the port — reuse a healthy instance instead of spawning a child
+// that would instantly die with EADDRINUSE.
+function checkEmbedHealth() {
+  return new Promise((resolve) => {
+    const req = http.get({ host: '127.0.0.1', port: EMBED_PORT, path: '/api/health', timeout: 2500 }, (res) => {
+      let data = '';
+      res.on('data', (c) => { data += c; });
+      res.on('end', () => {
+        try {
+          const j = JSON.parse(data);
+          resolve((j && (j.platform === 'OSIRIS' || j.status === 'operational')) ? 'healthy' : 'unhealthy');
+        } catch (_) { resolve(res.statusCode === 200 ? 'healthy' : 'unhealthy'); }
+      });
+    });
+    req.on('error', (e) => resolve(e && e.code === 'ECONNREFUSED' ? 'down' : 'unhealthy'));
+    req.on('timeout', () => { req.destroy(); resolve('unhealthy'); });
+  });
+}
+async function startEmbeddedOsiris() {
   if (EMBED_STARTED.value) return;
   EMBED_STARTED.value = true;
   try {
     const embedDir = path.join(ROOT, 'osiris-embed');
-    if (fs.existsSync(path.join(embedDir, 'server.js'))) {
-      const child = spawn('node', [path.join(embedDir, 'server.js')], {
-        cwd: embedDir,
-        env: { ...process.env, PORT: String(EMBED_PORT) },
-        stdio: 'inherit',
-        detached: true
-      });
-      console.log(`[OSIRIS EMBED] Starting embedded OSIRIS on port ${EMBED_PORT}`);
-      child.on('exit', (code) => console.log(`[OSIRIS EMBED] Exited with code ${code}`));
-    } else {
-      console.log('[OSIRIS EMBED] Server not found at osiris-embed/server.js — skip');
+    if (!fs.existsSync(path.join(embedDir, 'server.js'))) {
+      console.log('[OSIRIS EMBED] osiris-embed/server.js not found — full OSIRIS UI unavailable (merged /api/osiris/* still works)');
+      return;
     }
+    const state = await checkEmbedHealth();
+    if (state === 'healthy') {
+      console.log(`[OSIRIS EMBED] Reusing healthy OSIRIS on port ${EMBED_PORT} (left over from a previous run)`);
+      return;
+    }
+    if (state === 'unhealthy') {
+      console.log(`[OSIRIS EMBED] WARNING: port ${EMBED_PORT} answers but is not OSIRIS — embedded UI may fail. Free the port or set EMBED_PORT env.`);
+    }
+    const child = spawn('node', [path.join(embedDir, 'server.js')], {
+      cwd: embedDir,
+      env: { ...process.env, PORT: String(EMBED_PORT) },
+      stdio: 'inherit',
+      detached: true
+    });
+    console.log(`[OSIRIS EMBED] Starting embedded OSIRIS on port ${EMBED_PORT}`);
+    child.on('error', (e) => console.log('[OSIRIS EMBED] Failed to spawn:', e.message));
+    child.on('exit', (code) => console.log(`[OSIRIS EMBED] Exited with code ${code}`));
   } catch (e) {
     console.log('[OSIRIS EMBED] Failed to start:', e.message);
   }
