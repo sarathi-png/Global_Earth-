@@ -48,7 +48,3 @@
 .cesium-widget {
     z-index: 0 !important;
 }
-.cesium-widget canvas {
-    position: absolute !important;
-    z-index: 0 !important;
-}

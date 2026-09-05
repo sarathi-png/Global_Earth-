@@ -166,8 +166,14 @@
             this.refresh();
         } else {
             this.clearEntities();
+            if (this.refreshTimer) { clearInterval(this.refreshTimer); this.refreshTimer = null; }
         }
         if (typeof updateGlobalStats === 'function') updateGlobalStats();
+    },
+
+    destroy() {
+        if (this.refreshTimer) { clearInterval(this.refreshTimer); this.refreshTimer = null; }
+        this.clearEntities();
     }
 };
 

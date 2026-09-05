@@ -1,5 +1,11 @@
 const GlobeManager = {
     viewer: null,
+    _allLayerNames: [
+        'DisastersLayer','WarsLayer','MysteryLayer','HistoricalLayer',
+        'AircraftLayer','SatelliteLayer','WeatherLayer','LiveLayer',
+        'BordersLayer','OsirisLayer','HeatmapLayer','RippleArcLayer',
+        'DayNightLayer','StreetViewLayer'
+    ],
 
     async init(containerId) {
         try {
@@ -103,12 +109,7 @@ const GlobeManager = {
     },
 
     _cullingReset() {
-        const allLayers = [
-            window.DisastersLayer, window.WarsLayer, window.MysteryLayer,
-            window.HistoricalLayer, window.AircraftLayer, window.SatelliteLayer,
-            window.WeatherLayer, window.LiveLayer, window.BordersLayer,
-            window.OsirisLayer, window.HeatmapLayer, window.RippleArcLayer, window.DayNightLayer, window.StreetViewLayer
-        ];
+        const allLayers = this._allLayerNames.map(n => window[n]);
         allLayers.forEach(layer => {
             if (!layer || !layer.entities) return;
             layer.entities.forEach(entity => {
@@ -161,12 +162,7 @@ const GlobeManager = {
                 const H = canvas.clientHeight;
                 occluder.cameraPosition = camPos;
 
-                const allLayers = [
-                    window.DisastersLayer, window.WarsLayer, window.MysteryLayer,
-                    window.HistoricalLayer, window.AircraftLayer, window.SatelliteLayer,
-                    window.WeatherLayer, window.LiveLayer, window.BordersLayer,
-                    window.OsirisLayer, window.HeatmapLayer, window.RippleArcLayer, window.DayNightLayer, window.StreetViewLayer
-                ];
+                const allLayers = this._allLayerNames.map(n => window[n]);
 
                 allLayers.forEach(layer => {
                     if (!layer || !layer.entities || !layer.visible) return;
@@ -231,6 +227,14 @@ const GlobeManager = {
         };
 
         scene.preRender.addEventListener(this._cullingUpdate);
+        this._cullingListenerAttached = true;
+    },
+
+    destroyCulling() {
+        if (this.viewer && this.viewer.scene && this.viewer.scene.preRender && this._cullingUpdate && this._cullingListenerAttached) {
+            this.viewer.scene.preRender.removeEventListener(this._cullingUpdate);
+            this._cullingListenerAttached = false;
+        }
     },
 
     async setupLocalImagery() {

@@ -64,12 +64,13 @@ const OsirisLayer = {
                 try {
                     const lat = cam.lat, lng = cam.lng;
                     if(lat==null||lng==null) return;
+                    const safeFeedUrl = (typeof cam.feed_url === 'string' && /^https?:\/\//i.test(cam.feed_url)) ? cam.feed_url : '';
                     const entity = GlobeManager.viewer.entities.add({
                         name: cam.name || 'CCTV',
                         position: Cesium.Cartesian3.fromDegrees(lng, lat, 600),
                         point: { pixelSize: 7, color: Cesium.Color.fromCssColorString('#a78bfa'), outlineColor: Cesium.Color.WHITE, outlineWidth: 1.2, disableDepthTestDistance: Number.POSITIVE_INFINITY },
                         label: { text: cam.name ? cam.name.slice(0,22) : 'CCTV', font: '10px Inter, sans-serif', fillColor: Cesium.Color.WHITE, outlineColor: Cesium.Color.BLACK, outlineWidth: 2, style: Cesium.LabelStyle.FILL_AND_OUTLINE, pixelOffset: new Cesium.Cartesian2(0,-18), show: false, translucencyByDistance: new Cesium.NearFarScalar(1e3,1,6e6,0) },
-                        properties: { id: cam.id, title: cam.name, description: `${cam.city||''} ${cam.country||''} • ${cam.source||'CCTV'}${cam.feed_url? ' • <a href="'+cam.feed_url+'" target="_blank" style="color:#a78bfa">View feed</a>':''} • OSIRIS-merged`, type: 'osiris-cctv', category: 'CCTV', year: new Date().getFullYear(), severity: 'Low', lat, lng, source: cam.source, wikiQuery: cam.city || cam.name, feed_url: cam.feed_url || '' }
+                        properties: { id: cam.id, title: cam.name, description: `${cam.city||''} ${cam.country||''} • ${cam.source||'CCTV'} • OSIRIS-merged`, type: 'osiris-cctv', category: 'CCTV', year: new Date().getFullYear(), severity: 'Low', lat, lng, source: cam.source, wikiQuery: cam.city || cam.name, feed_url: safeFeedUrl }
                     });
                     entity.show = this.visible;
                     this.entities.push(entity); this.cctvEntities.push(entity);
@@ -138,20 +139,22 @@ const OsirisLayer = {
                 try {
                     const lat = z.lat, lng = z.lng; if(lat==null||lng==null) return;
                     const sevColor = z.severity==='war'?'#ef4444': z.severity==='high'?'#f97316':'#f59e0b';
-                    const entity = MarkerFactory ? MarkerFactory.createPoint({ id: 'osiris-conflict-'+z.id, title: z.label||z.name, type:'war', lat, lng, year: new Date().getFullYear(), severity: z.severity==='war'?'Critical':z.severity, description: (z.description||'')+` • ${z.eventCount||0} recent events • <a href="${z.sourceUrl||'#'}" target="_blank" style="color:#f87171">LiveUAMap</a> • OSIRIS-merged`, source: 'OSIRIS Conflicts (merged)', wikiQuery: z.label }, sevColor) : GlobeManager.viewer.entities.add({
+                    const safeSourceUrl = (typeof z.sourceUrl === 'string' && /^https?:\/\//i.test(z.sourceUrl)) ? z.sourceUrl : '';
+                    const entity = MarkerFactory ? MarkerFactory.createPoint({ id: 'osiris-conflict-'+z.id, title: z.label||z.name, type:'war', lat, lng, year: new Date().getFullYear(), severity: z.severity==='war'?'Critical':z.severity, description: (z.description||'')+` • ${z.eventCount||0} recent events • OSIRIS-merged`, source: 'OSIRIS Conflicts (merged)', wikiQuery: z.label, sourceUrl: safeSourceUrl }, sevColor) : GlobeManager.viewer.entities.add({
                         position: Cesium.Cartesian3.fromDegrees(lng, lat, 800),
                         point: { pixelSize: 12, color: Cesium.Color.fromCssColorString(sevColor), outlineColor:Cesium.Color.WHITE, outlineWidth:1.5, disableDepthTestDistance:Number.POSITIVE_INFINITY },
-                        properties: { id:'osiris-conflict-'+z.id, title: z.label, description: z.description, type:'war', lat, lng }
+                        properties: { id:'osiris-conflict-'+z.id, title: z.label, description: z.description, type:'war', lat, lng, sourceUrl: safeSourceUrl }
                     });
                     entity.show = this.visible;
                     this.entities.push(entity); this.conflictEntities.push(entity);
                     // add small live event dots around zone
                     (z.events||[]).slice(0,6).forEach(ev=>{
                         try{
+                            const safeUrl = (typeof ev.url === 'string' && /^https?:\/\//i.test(ev.url)) ? ev.url : '';
                             const e2 = GlobeManager.viewer.entities.add({
                                 position: Cesium.Cartesian3.fromDegrees(ev.lng, ev.lat, 500),
                                 point:{ pixelSize:6, color: Cesium.Color.fromCssColorString('#f87171').withAlpha(0.85), outlineColor:Cesium.Color.WHITE.withAlpha(0.6), outlineWidth:1, disableDepthTestDistance:Number.POSITIVE_INFINITY },
-                                properties:{ id: ev.id, title: ev.title, description: `${ev.title} • <a href="${ev.url}" target="_blank" style="color:#f87171">source</a> • OSIRIS live`, type:'osiris-conflict-event', year:new Date().getFullYear(), severity:'High', lat: ev.lat, lng: ev.lng, source:'OSIRIS RSS' }
+                                properties:{ id: ev.id, title: typeof ev.title === 'string' ? ev.title : '', description: `${ev.title} • OSIRIS live`, type:'osiris-conflict-event', year:new Date().getFullYear(), severity:'High', lat: ev.lat, lng: ev.lng, source:'OSIRIS RSS', url: safeUrl }
                             });
                             e2.show=this.visible; this.entities.push(e2); this.conflictEntities.push(e2);
                         }catch{}
@@ -165,7 +168,7 @@ const OsirisLayer = {
                     const e2 = GlobeManager.viewer.entities.add({
                         position: Cesium.Cartesian3.fromDegrees(ev.lng, ev.lat, 500),
                         point:{ pixelSize:5, color:Cesium.Color.fromCssColorString('#f87171'), outlineColor:Cesium.Color.WHITE, outlineWidth:1, disableDepthTestDistance:Number.POSITIVE_INFINITY },
-                        properties:{ id: ev.id||'live-'+ev.lat+'-'+ev.lng, title: ev.title||'Conflict event', description: ev.title, type:'osiris-conflict-event', lat: ev.lat, lng: ev.lng, source:'OSIRIS' }
+                        properties:{ id: ev.id||'live-'+ev.lat+'-'+ev.lng, title: typeof ev.title === 'string' ? ev.title : 'Conflict event', description: typeof ev.title === 'string' ? ev.title : '', type:'osiris-conflict-event', lat: ev.lat, lng: ev.lng, source:'OSIRIS' }
                     });
                     e2.show=this.visible; this.entities.push(e2); this.conflictEntities.push(e2);
                 }catch{}
@@ -258,6 +261,11 @@ const OsirisLayer = {
         }
         if (typeof updateGlobalStats==='function') updateGlobalStats();
         if (typeof updateLegendVisibility==='function') updateLegendVisibility();
+    },
+
+    destroy() {
+        this.clear();
+        this.entities = []; this.cctvEntities = []; this.maritimeEntities = []; this.chokepointEntities = []; this.conflictEntities = []; this.flightEntities = []; this.satelliteEntities = []; this.shipEntities = [];
     }
 };
 window.OsirisLayer = OsirisLayer;

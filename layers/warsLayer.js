@@ -6,6 +6,7 @@ const WarsLayer = {
         if (!this.visible) return;
         try {
             const response = await fetch('data/wars.json');
+            if (!response.ok) throw new Error('HTTP ' + response.status);
             const data = await response.json();
             this.renderMarkers(data);
             console.log(`Wars Layer Initialized: ${data.length} markers`);

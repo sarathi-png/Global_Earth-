@@ -37,13 +37,15 @@
     width: 36px;
     height: 36px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.03);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--text-primary);
-    border: 1px solid var(--panel-border);
-    transition: all var(--transition-default);
+    background: rgba(255,255,255,0.08);
+    border: 1.5px solid rgba(255,255,255,0.25);
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     flex-shrink: 0;
 }
 
@@ -62,19 +64,43 @@
 
 #timeline {
     position: absolute;
-    bottom: 20px;
-    left: 20px;
-    right: 20px;
-    height: 60px;
+    bottom: 12px;
+    left: 260px;
+    right: 280px;
+    height: 48px;
     z-index: 10;
-    padding: 0 20px;
+    padding: 0 16px;
     display: flex;
     align-items: center;
+    background: rgba(15, 15, 35, 0.6);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    transition: all 0.3s ease;
+}
+
+#timeline.minimized {
+    height: 36px;
+    padding: 0 12px;
 }
 
 .timeline-controls {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 12px;
     width: 100%;
 }
+
+.timeline-min-btn {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 4px;
+    padding: 2px 6px;
+    color: rgba(255,255,255,0.6);
+    font-size: 10px;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.2s;
+}
+.timeline-min-btn:hover { background: rgba(255,255,255,0.15); color: #fff; }

@@ -22,8 +22,10 @@ const LiveLayer = {
     async init() {
         this.setStatus(navigator.onLine ? 'loading' : 'offline');
         if (this.visible) await this.refresh();
-        window.addEventListener('online', () => { this.setStatus('loading'); this.refresh(); this.connectSSE(); });
-        window.addEventListener('offline', () => { this.setStatus('offline'); this.disconnectSSE(); });
+        this._onlineHandler = () => { this.setStatus('loading'); this.refresh(); this.connectSSE(); };
+        this._offlineHandler = () => { this.setStatus('offline'); this.disconnectSSE(); };
+        window.addEventListener('online', this._onlineHandler);
+        window.addEventListener('offline', this._offlineHandler);
         this.startAutoRefresh();
         this.connectSSE();
     },
@@ -126,6 +128,15 @@ const LiveLayer = {
         const labels = { online: 'Live', loading: 'Loading...', offline: 'Offline', error: 'Error', partial: 'Partial' };
         badge.innerText = labels[status] || status;
         badge.className = 'value ' + status;
+    },
+
+    destroy() {
+        if (this.refreshTimer) { clearInterval(this.refreshTimer); this.refreshTimer = null; }
+        if (this.sseSource) { this.sseSource.close(); this.sseSource = null; }
+        window.removeEventListener('online', this._onlineHandler);
+        window.removeEventListener('offline', this._offlineHandler);
+        this._onlineHandler = null;
+        this._offlineHandler = null;
     }
 };
 

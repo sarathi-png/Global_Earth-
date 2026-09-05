@@ -1,7 +1,7 @@
 const CONFIG = {
-    CESIUM_TOKEN: (typeof process !== 'undefined' && process.env && process.env.CESIUM_TOKEN) || '',
+    CESIUM_TOKEN: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJmMGEzZTI2My0xMTg4LTQ2YzctYTRiNi1jYzQyYTU0Njg3MDYiLCJpZCI6NDA2NjUyLCJpYXQiOjE3NzQwMDk1OTJ9.9oA9RU0Tghwn7CgQZEVYKRwwq0gHRyUp1SHUkXQj3F0',
     FIRMS_MAP_KEY: (typeof process !== 'undefined' && process.env && process.env.FIRMS_MAP_KEY) || '',
-    NASA_API_KEY: (typeof process !== 'undefined' && process.env && process.env.NASA_API_KEY) || 'DEMO_KEY',
+    NASA_API_KEY: 'DEMO_KEY',
 
     GLOBE_SETTINGS: {
         baseColor: '#1a202c',

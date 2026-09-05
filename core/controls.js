@@ -1,8 +1,10 @@
 const ControlManager = {
+    handler: null,
     init() {
         if (!GlobeManager.viewer) return;
-        
-        const handler = new Cesium.ScreenSpaceEventHandler(GlobeManager.viewer.scene.canvas);
+        if (this.handler) { this.handler.destroy(); this.handler = null; }
+
+        this.handler = new Cesium.ScreenSpaceEventHandler(GlobeManager.viewer.scene.canvas);
         
         // Hover handling
         handler.setInputAction((movement) => {

@@ -61,7 +61,8 @@ const DrawerManager = {
         const placeholderEl = document.getElementById('drawerImagePlaceholder');
 
         if (titleEl) titleEl.innerText = title;
-        if (descEl) descEl.innerHTML = this.linkify(description) + (source ? `<br><span style="color:#888;font-size:11px;">Source: ${source}</span>` : '');
+        const sourceSafe = (typeof source === 'string' && source.length < 200) ? source.replace(/[<>"']/g,'') : '';
+        if (descEl) descEl.innerHTML = (this.linkify(description) || '').replace(/[<>"']/g,'') + (sourceSafe ? `<br><span style="color:#888;font-size:11px;">Source: ${sourceSafe}</span>` : '');
         if (typeEl) typeEl.innerText = type;
         if (yearEl) yearEl.innerText = year;
         if (sevEl) sevEl.innerText = severity;

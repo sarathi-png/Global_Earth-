@@ -233,6 +233,7 @@
 
         <!-- Bottom Premium Timeline -->
         <div id="timeline" class="glass-panel">
+            <button class="timeline-min-btn" id="timelineMinBtn" title="Minimize timeline">−</button>
             <div class="timeline-controls">
                 <button id="playTimeline"><i class="fas fa-play"></i></button>
                 <div class="range-wrapper">
@@ -242,90 +243,51 @@
             </div>
         </div>
 
-        <!-- Floating Legend -->
+        <!-- Floating Legend (clean redesigned) -->
         <div id="legend" class="glass-panel">
-            <h4>Tactical Legend</h4>
-            <div class="legend-item" data-layer="disasters">
-                <span class="marker-symbol disaster"></span>
-                <span>Major Disaster</span>
+            <div class="legend-header">
+                <h4>Legend</h4>
+                <button id="legendMinBtn" class="legend-min-btn" title="Minimize/Restore">−</button>
             </div>
-            <div class="legend-item" data-layer="wars">
-                <span class="marker-symbol war"></span>
-                <span>Conflict / War</span>
+            <div class="legend-body" id="legendBody">
+                <div class="legend-group-title">Core</div>
+                <div class="legend-item" data-layer="disasters"><span class="marker-symbol disaster"></span><span>Disaster</span></div>
+                <div class="legend-item" data-layer="wars"><span class="marker-symbol war"></span><span>Conflict</span></div>
+                <div class="legend-item" data-layer="aircraft"><span class="marker-symbol aircraft"></span><span>Aerospace</span></div>
+                <div class="legend-item" data-layer="sat"><span class="marker-symbol satellite"></span><span>Satellite Orbit</span></div>
+                <div class="legend-item" data-layer="weather"><span class="marker-symbol weather"></span><span>Weather</span></div>
+                <div class="legend-item" data-layer="live"><span class="marker-symbol live"></span><span>Live Feed</span></div>
+                <div class="legend-group-title">OSIRIS</div>
+                <div class="legend-item" data-layer="osiris"><span class="marker-symbol" style="background:#a78bfa;"></span><span>CCTV Cameras</span></div>
+                <div class="legend-item" data-layer="osiris"><span class="marker-symbol" style="background:#38bdf8;border-radius:2px;"></span><span>Ports / Naval</span></div>
+                <div class="legend-item" data-layer="osiris"><span class="marker-symbol" style="background:#f59e0b;border:2px solid #fff;"></span><span>Chokepoints</span></div>
+                <div class="legend-item" data-layer="osiris"><span class="marker-symbol" style="background:#ef4444;"></span><span>Conflict Zones</span></div>
+                <div class="legend-item" data-layer="osiris"><span class="marker-symbol" style="background:#22c55e;"></span><span>Flights</span></div>
+                <div class="legend-item" data-layer="osiris"><span class="marker-symbol" style="background:#f97316;border-radius:2px;"></span><span>Satellites</span></div>
+                <div class="legend-group-title">Effects</div>
+                <div class="legend-item" data-layer="heatmap"><span class="marker-symbol" style="background: radial-gradient(circle, rgba(255,149,0,0.6) 0%, transparent 70%);"></span><span>Heatmap</span></div>
+                <div class="legend-item" data-layer="ripple"><span class="marker-symbol" style="background: radial-gradient(circle, rgba(255,59,48,0.4) 0%, transparent 70%); border: 1px solid rgba(255,59,48,0.5);"></span><span>Ripple Rings</span></div>
             </div>
-            <div class="legend-item" data-layer="mysteries">
-                <span class="marker-symbol mystery"></span>
-                <span>Mystery / Unknown</span>
-            </div>
-            <div class="legend-item" data-layer="history">
-                <span class="marker-symbol history"></span>
-                <span>Major Event</span>
-            </div>
-            <div class="legend-item" data-layer="aircraft">
-                <span class="marker-symbol aircraft"></span>
-                <span>Aerospace (Active)</span>
-            </div>
-            <div class="legend-item" data-layer="sat">
-                <span class="marker-symbol satellite"></span>
-                <span>Satellite (Orbit)</span>
-            </div>
-            <div class="legend-item" data-layer="weather">
-                <span class="marker-symbol weather"></span>
-                <span>Weather Overlay</span>
-            </div>
-            <div class="legend-item" data-layer="borders">
-                <span class="marker-symbol border-stable"></span>
-                <span>Region: Stable</span>
-            </div>
-            <div class="legend-item" data-layer="live">
-                <span class="marker-symbol live"></span>
-                <span>Live Event (NASA/USGS)</span>
-            </div>
-            <div class="legend-item" data-layer="gibs">
-                <span class="marker-symbol weather"></span>
-                <span>GIBS Satellite Imagery</span>
-            </div>
-            <div class="legend-item" data-layer="heatmap">
-                <span class="marker-symbol" style="background: radial-gradient(circle, rgba(255,149,0,0.6) 0%, transparent 70%); border-radius: 50%;"></span>
-                <span>Event Density Heatmap</span>
-            </div>
-            <div class="legend-item" data-layer="ripple">
-                <span class="marker-symbol" style="background: radial-gradient(circle, rgba(255,59,48,0.4) 0%, transparent 70%); border-radius: 50%; border: 1px solid rgba(255,59,48,0.5);"></span>
-                <span>Ripple Rings (Critical Events)</span>
-            </div>
-            <div class="legend-item" data-layer="streetview">
-                <span class="marker-symbol" style="background:#4ade80;border-radius:2px;"></span>
-                <span>Street View (Ion Bing)</span>
-            </div>
-            <div class="legend-item" data-layer="osiris">
-                <span class="marker-symbol" style="background:#a78bfa;border-radius:50%;"></span>
-                <span>OSIRIS CCTV</span>
-            </div>
-            <div class="legend-item" data-layer="osiris" style="opacity:0.95">
-                <span class="marker-symbol" style="background:#38bdf8;border-radius:2px;"></span>
-                <span>Ports / Naval</span>
-            </div>
-            <div class="legend-item" data-layer="osiris" style="opacity:0.95">
-                <span class="marker-symbol" style="background:#f59e0b;border-radius:50%;border:2px solid #fff;"></span>
-                <span>Chokepoints</span>
-            </div>
-            <div class="legend-item" data-layer="osiris" style="opacity:0.95">
-                <span class="marker-symbol" style="background:#ef4444;border-radius:50%;"></span>
-                <span>Conflict Zones + Live Events</span>
-            </div>
-            <div class="legend-item" data-layer="osiris" style="opacity:0.95">
-                <span class="marker-symbol" style="background:#22c55e;border-radius:50%;"></span>
-                <span>Flights (ADS-B)</span>
-            </div>
-            <div class="legend-item" data-layer="osiris" style="opacity:0.95">
-                <span class="marker-symbol" style="background:#f97316;border-radius:2px;"></span>
-                <span>Satellites (CelesTrak)</span>
-            </div>
-            <div class="legend-item" data-layer="osiris" style="opacity:0.7;font-size:11px;border-top:1px dashed rgba(255,255,255,0.15);padding-top:6px;margin-top:4px;">
-                <span style="font-size:10px;">MERGED</span>
-                <span style="font-size:10px;">native /api/osiris/* + fallback :4000 • <a href="https://github.com/simplifaisoul/osiris" target="_blank" style="color:#a78bfa;">OSIRIS</a></span>
-            </div>
+            <a href="osiris-embed/" target="_blank" class="legend-osiris-link">🛰 Open OSIRIS Intelligence →</a>
         </div>
+        <a href="osiris-embed/" target="_blank" style="display:inline-block;margin-top:8px;padding:6px 12px;background:#a78bfa;color:#fff;border-radius:4px;text-decoration:none;font-size:12px;font-weight:600;">Open OSIRIS Intelligence →</a>
+        <script>
+        (function() {
+            var btn = document.getElementById('legendMinBtn');
+            var body = document.getElementById('legendBody');
+            if (btn && body) {
+                btn.addEventListener('click', function() {
+                    if (body.classList.contains('minimized')) {
+                        body.classList.remove('minimized');
+                        btn.textContent = '−';
+                    } else {
+                        body.classList.add('minimized');
+                        btn.textContent = '+';
+                    }
+                });
+            }
+        })();
+        </script>
 
         <!-- Custom Hover Popup -->
         <div id="popup" class="glass-panel hidden">
@@ -380,6 +342,25 @@
     <!-- Incidents -->
     <script src="incidents/markers.js?v=2.1" defer></script>
 
+    <!-- Timeline minimize script -->
+    <script>
+    (function(){
+        var btn = document.getElementById('timelineMinBtn');
+        var tl = document.getElementById('timeline');
+        if (btn && tl) {
+            btn.addEventListener('click', function(){
+                if (tl.classList.contains('minimized')) {
+                    tl.classList.remove('minimized');
+                    btn.textContent = '−';
+                } else {
+                    tl.classList.add('minimized');
+                    btn.textContent = '+';
+                }
+            });
+        }
+    })();
+    </script>
+
     <!-- Layers -->
     <script src="layers/disastersLayer.js?v=2.1" defer></script>
     <script src="layers/warsLayer.js?v=2.1" defer></script>
@@ -403,7 +384,7 @@
     <script src="search/searchUI.js?v=2.1" defer></script>
 
     <!-- Timeline -->
-    <script src="timeline/filters.js?v=2.1" defer></script>
+    <!-- timeline/filters removed (dead code) -->
     <script src="timeline/timeline.js?v=2.1" defer></script>
 
     <!-- Debugging Diagnostics -->
@@ -413,7 +394,7 @@
     <script src="ui/drawer.js?v=2.1" defer></script>
     <script src="incidents/hoverPopup.js?v=2.1" defer></script>
     <script src="incidents/clustering.js?v=2.1" defer></script>
-    <script src="animations/uiAnimations.js?v=2.1" defer></script>
+    <!-- animations/uiAnimations removed (dead code) -->
 
     <!-- Cesium Load Fallback -->
     <script src="js/fallback.js?v=2.1" defer></script>

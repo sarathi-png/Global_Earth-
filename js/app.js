@@ -145,7 +145,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         updateLegendVisibility();
         updateGlobalStats();
         URLStateManager.init();
-        setInterval(() => URLStateManager.update(), 2000);
+        window._urlStateInterval = setInterval(() => URLStateManager.update(), 2000);
 
         console.log("System Online");
         
@@ -159,83 +159,63 @@ document.addEventListener('DOMContentLoaded', async () => {
     }, 0);
 });
 
+// ── Shared toggle ID registry ──
+const TOGGLE_IDS = [
+    'toggleDisasters','toggleWars','toggleMysteries','toggleHistory',
+    'toggleAircraft','toggleSat','toggleWeather','toggleBorders',
+    'toggleLive','toggleGIBS','toggleHeatmap','toggleRipple',
+    'toggleDayNight','toggleStreetView','toggleOsiris'
+];
+
+const TOGGLE_ID_TO_LEGEND_CLASS = {
+    'toggleDisasters':'disasters','toggleWars':'wars','toggleMysteries':'mysteries',
+    'toggleHistory':'history','toggleAircraft':'aircraft','toggleSat':'sat',
+    'toggleWeather':'weather','toggleBorders':'borders','toggleLive':'live',
+    'toggleGIBS':'gibs','toggleHeatmap':'heatmap','toggleRipple':'ripple',
+    'toggleDayNight':'daynight','toggleStreetView':'streetview','toggleOsiris':'osiris'
+};
+
+const TOGGLE_ID_TO_LAYER = {
+    'toggleDisasters':DisastersLayer,'toggleWars':WarsLayer,
+    'toggleMysteries':MysteryLayer,'toggleHistory':HistoricalLayer,
+    'toggleAircraft':AircraftLayer,'toggleSat':SatelliteLayer,
+    'toggleWeather':WeatherLayer,'toggleBorders':BordersLayer,
+    'toggleLive':LiveLayer,'toggleGIBS':null,
+    'toggleHeatmap':HeatmapLayer,'toggleRipple':RippleArcLayer,
+    'toggleDayNight':DayNightLayer,'toggleStreetView':StreetViewLayer,
+    'toggleOsiris':OsirisLayer
+};
+
 function updateLegendVisibility() {
-    const toggleMap = {
-        'toggleDisasters': 'disasters',
-        'toggleWars': 'wars',
-        'toggleMysteries': 'mysteries',
-        'toggleHistory': 'history',
-        'toggleAircraft': 'aircraft',
-        'toggleSat': 'sat',
-        'toggleWeather': 'weather',
-        'toggleBorders': 'borders',
-        'toggleLive': 'live',
-        'toggleGIBS': 'gibs',
-        'toggleHeatmap': 'heatmap', 'toggleRipple': 'ripple', 'toggleDayNight': 'daynight',
-        'toggleStreetView': 'streetview', 'toggleOsiris': 'osiris'
-    };
-
-    Object.entries(toggleMap).forEach(([toggleId, layerClass]) => {
+    TOGGLE_IDS.forEach(toggleId => {
         const el = document.getElementById(toggleId);
-        const legendItem = document.querySelector(`.legend-item[data-layer="${layerClass}"]`);
+        const legendClass = TOGGLE_ID_TO_LEGEND_CLASS[toggleId];
+        const legendItem = legendClass ? document.querySelector(`.legend-item[data-layer="${legendClass}"]`) : null;
         if (!el || !legendItem) return;
-
-        if (el.checked) {
-            legendItem.classList.remove('hidden-layer');
-        } else {
-            legendItem.classList.add('hidden-layer');
-        }
+        el.checked ? legendItem.classList.remove('hidden-layer') : legendItem.classList.add('hidden-layer');
     });
 }
 
 function syncAllLayerVisibility() {
-    const toggleMap = {
-        'toggleDisasters': DisastersLayer,
-        'toggleWars': WarsLayer,
-        'toggleMysteries': MysteryLayer,
-        'toggleHistory': HistoricalLayer,
-        'toggleAircraft': AircraftLayer,
-        'toggleSat': SatelliteLayer,
-        'toggleWeather': WeatherLayer,
-        'toggleBorders': BordersLayer,
-        'toggleLive': LiveLayer,
-        'toggleGIBS': null,
-        'toggleHeatmap': HeatmapLayer,
-        'toggleRipple': RippleArcLayer,
-        'toggleDayNight': DayNightLayer,
-        'toggleStreetView': StreetViewLayer,
-        'toggleOsiris': OsirisLayer
-    };
-
-    Object.entries(toggleMap).forEach(([toggleId, layer]) => {
+    TOGGLE_IDS.forEach(toggleId => {
         const el = document.getElementById(toggleId);
+        const layer = TOGGLE_ID_TO_LAYER[toggleId];
         if (!el || !layer) return;
         const isChecked = el.checked;
         layer.visible = isChecked;
-        if (layer.toggleVisibility) {
-            layer.toggleVisibility(isChecked);
-        }
+        if (layer.toggleVisibility) layer.toggleVisibility(isChecked);
     });
 }
 
 function _processNotifications(events) { if (typeof NotificationSystem !== 'undefined' && events) NotificationSystem.processEvents(events); }
-let _statsTimer = null;
 function updateGlobalStats() {
-    if (_statsTimer) cancelAnimationFrame(_statsTimer);
-    _statsTimer = requestAnimationFrame(() => {
-        let total = 0;
-        const layers = [DisastersLayer, WarsLayer, MysteryLayer, HistoricalLayer, BordersLayer, AircraftLayer, SatelliteLayer, LiveLayer, HeatmapLayer, RippleArcLayer, OsirisLayer];
-        layers.forEach(l => {
-            if (!l) return;
-            if (l.visible && l.entities) {
-                l.entities.forEach(e => {
-                    if (e.show) total++;
-                });
-            }
-        });
-        const badge = document.getElementById('activeMarkerCount');
-        if (badge) badge.innerText = total;
+    let total = 0;
+    [DisastersLayer,WarsLayer,MysteryLayer,HistoricalLayer,BordersLayer,AircraftLayer,SatelliteLayer,LiveLayer,HeatmapLayer,RippleArcLayer,OsirisLayer].forEach(l => {
+        if (!l) return;
+        if (l.visible && l.entities) l.entities.forEach(e => { if (e.show) total++; });
     });
+    const badge = document.getElementById('activeMarkerCount');
+    if (badge) badge.innerText = total;
 }
 
 function setupUIListeners() {
@@ -343,9 +323,22 @@ function setupUIListeners() {
         });
     }
 
+    // Cleanup previous handler if re-initializing
+    if (window._cesiumClickHandler) { window._cesiumClickHandler.destroy(); }
     if (window.GlobeManager && window.GlobeManager.viewer) {
         var viewer = window.GlobeManager.viewer;
-        var handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
-        handler.setInputAction(function() { hideUI(); }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+        window._cesiumClickHandler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+        window._cesiumClickHandler.setInputAction(function() { hideUI(); }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
     }
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', function() {
+        if (window._cesiumClickHandler) window._cesiumClickHandler.destroy();
+        if (window._urlStateInterval) clearInterval(window._urlStateInterval);
+        if (window.LiveLayer && window.LiveLayer.destroy) window.LiveLayer.destroy();
+        if (window.AircraftLayer && window.AircraftLayer.destroy) window.AircraftLayer.destroy();
+        if (window.SatelliteLayer && window.SatelliteLayer.destroy) window.SatelliteLayer.destroy();
+        if (window.OsirisLayer && window.OsirisLayer.destroy) window.OsirisLayer.destroy();
+        if (window.GlobeManager && window.GlobeManager.destroyCulling) window.GlobeManager.destroyCulling();
+    });
 }

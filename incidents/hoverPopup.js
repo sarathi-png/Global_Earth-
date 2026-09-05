@@ -22,11 +22,10 @@ const HoverPopup = {
         const titleEl = document.getElementById('popupTitle');
         const metaEl = document.getElementById('popupMeta');
         if (titleEl) titleEl.innerText = title;
+        const typeSafe = (typeof type === 'string' && type.length < 40) ? type : 'info';
+        const yearSafe = (typeof year === 'string' || typeof year === 'number') ? String(year).slice(0, 20) : '-';
         if (metaEl) {
-            metaEl.innerHTML = `
-                <span class="badge ${type}">${type}</span>
-                <span>${year}</span>
-            `;
+            metaEl.innerHTML = `<span class="badge ${typeSafe}">${typeSafe}</span><span>${yearSafe}</span>`;
         }
         
         this.element.style.display = 'block';

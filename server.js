@@ -3,9 +3,12 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const url = require('url');
+const { spawn } = require('child_process');
 
 const ROOT = __dirname;
 const PORT = parseInt(process.argv[2], 10) || 8080;
+const EMBED_PORT = parseInt(process.env.EMBED_PORT, 10) || 4000;
+const EMBED_STARTED = { value: false };
 
 // Load .env manually (no dotenv dependency)
 (function loadDotEnv() {
@@ -25,31 +28,6 @@ const PORT = parseInt(process.argv[2], 10) || 8080;
   } catch (_) {}
 })();
 
-// ── Inject .env keys into js/config.js (browser has no process.env) ──
-let _injectedConfigCache = null;
-function getInjectedConfigJs() {
-  if (_injectedConfigCache !== null) return _injectedConfigCache;
-  try {
-    const cfgPath = path.join(ROOT, 'js', 'config.js');
-    let src = fs.readFileSync(cfgPath, 'utf8');
-    const cesiumTok = process.env.CESIUM_TOKEN || '';
-    const firmsKey = process.env.FIRMS_MAP_KEY || '';
-    const nasaKey = process.env.NASA_API_KEY || 'DEMO_KEY';
-    // Replace the browser-evaluated process.env expressions with literal strings
-    // js/config.js has: (typeof process !== 'undefined' && process.env && process.env.CESIUM_TOKEN) || ''
-    src = src.replace("(typeof process !== 'undefined' && process.env && process.env.CESIUM_TOKEN) || ''", JSON.stringify(cesiumTok));
-    src = src.replace("(typeof process !== 'undefined' && process.env && process.env.FIRMS_MAP_KEY) || ''", JSON.stringify(firmsKey));
-    src = src.replace("(typeof process !== 'undefined' && process.env && process.env.NASA_API_KEY) || 'DEMO_KEY'", JSON.stringify(nasaKey));
-    // Server-side injection marker (helps verify it was injected)
-    if (cesiumTok || firmsKey) {
-      src += `\n// [server-injected] CESIUM_TOKEN:${cesiumTok ? 'set' : 'empty'} FIRMS_MAP_KEY:${firmsKey ? 'set' : 'empty'} NASA_API_KEY:${nasaKey !== 'DEMO_KEY' ? 'set' : 'DEMO_KEY'}\n`;
-    }
-    _injectedConfigCache = src;
-  } catch (_) {
-    _injectedConfigCache = null;
-  }
-  return _injectedConfigCache;
-}
 
 const mime = {
   '.html': 'text/html', '.css': 'text/css', '.js': 'application/javascript',
@@ -69,26 +47,19 @@ const rateLimiter = new Map();
 const RATE_LIMIT = 60;
 const sseClients = new Set();
 
-// ── Stealth fetch helpers (OSIRIS port) ──
-const IP_POOLS = [
-  { base: [73, 15], range: [255, 255] }, { base: [98, 24], range: [255, 255] },
-  { base: [86, 128], range: [127, 255] }, { base: [80, 128], range: [63, 255] },
-  { base: [90, 0], range: [63, 255] }, { base: [177, 0], range: [127, 255] },
-];
+// ── Polite fetch helpers (OSIRIS port — no IP spoofing) ──
 const USER_AGENTS = [
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36',
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36',
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:133.0) Gecko/20100101 Firefox/133.0',
 ];
-function randomInt(max){ return Math.floor(Math.random()*(max+1)); }
-function stealthHeaders(extra){
-  const pool = IP_POOLS[randomInt(IP_POOLS.length-1)];
-  const ip = `${pool.base[0]}.${pool.base[1]+randomInt(pool.range[0])}.${randomInt(pool.range[1])||1}.${randomInt(254)+1}`;
-  const ua = USER_AGENTS[randomInt(USER_AGENTS.length-1)];
-  return { 'User-Agent': ua, 'Accept-Language': 'en-US,en;q=0.9', 'X-Forwarded-For': ip, 'X-Real-IP': ip, ...(extra||{}) };
+const _uaIdx = 0; // rotate gently
+function politeHeaders(extra){
+  const ua = USER_AGENTS[_uaIdx % USER_AGENTS.length];
+  return { 'User-Agent': ua, 'Accept-Language': 'en-US,en;q=0.9', ...(extra||{}) };
 }
-async function fetchStealth(targetUrl, opts={}){
-  const headers = stealthHeaders(opts.headers);
+async function fetchPolite(targetUrl, opts={}){
+  const headers = politeHeaders(opts.headers);
   const controller = new AbortController();
   const t = setTimeout(()=>controller.abort(), opts.timeout||12000);
   try{
@@ -118,9 +89,31 @@ function checkRateLimit(ip) {
   if (!entry || now - entry.start > 60000) { rateLimiter.set(ip, { start: now, count: 1 }); return true; }
   entry.count++; return entry.count <= RATE_LIMIT;
 }
+const ALLOWED_UPSTREAM_HOSTS = new Set([
+  'eonet.gsfc.nasa.gov', 'earthquake.usgs.gov', 'www.gdacs.org',
+  'api.weather.gov', 'www.fema.gov', 'api.open-meteo.com',
+  'api.airplanes.live', 'celestrak.org', 'api.unsplash.com',
+  'api.tfl.gov.uk', 'data.wsdot.wa.gov', 'feeds.bbci.co.uk',
+  'www.aljazeera.com', 'api.gdeltproject.org',
+]);
+
+function isSafeUpstreamHost(hostname) {
+  const h = (hostname || '').toLowerCase();
+  if (ALLOWED_UPSTREAM_HOSTS.has(h)) return true;
+  if (h.endsWith('.nasa.gov') || h.endsWith('.usgs.gov') || h.endsWith('.noaa.gov')) return true;
+  return false;
+}
+
 function fetchUrl(targetUrl, timeoutMs = 15000, extraHeaders) {
   return new Promise((resolve, reject) => {
-    const parsedUrl = new URL(targetUrl);
+    let parsedUrl;
+    try { parsedUrl = new URL(targetUrl); } catch (e) { return reject(new Error('Invalid URL')); }
+    if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+      return reject(new Error('Blocked protocol'));
+    }
+    if (!isSafeUpstreamHost(parsedUrl.hostname)) {
+      return reject(new Error('Blocked host: ' + parsedUrl.hostname));
+    }
     const client = parsedUrl.protocol === 'https:' ? https : http;
     const headers = { 'User-Agent': 'GlobalEarth/2.0', ...(extraHeaders || {}) };
     const req = client.get(targetUrl, { timeout: timeoutMs, headers }, (res) => {
@@ -219,7 +212,7 @@ async function handleOsirisConflictsNative(req, res) {
   let eventsByRegion = {};
   try {
     const feeds = ['http://feeds.bbci.co.uk/news/world/rss.xml','https://www.aljazeera.com/xml/rss/all.xml'];
-    const results = await Promise.allSettled(feeds.map(u=> fetchStealth(u, { timeout: 7000 })));
+    const results = await Promise.allSettled(feeds.map(u=> fetchPolite(u, { timeout: 7000 })));
     const items = [];
     for(const r of results){ if(r.status==='fulfilled' && r.value.ok){ const xml = r.value.body; const raw = xml.split(/<item>/i).slice(1); for(const chunk of raw){ const titleM = chunk.match(/<title>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/title>/i); const linkM = chunk.match(/<link>(.*?)<\/link>/i); if(!titleM) continue; const title = titleM[1].replace(/<[^>]*>/g,'').trim(); const link = linkM?linkM[1]:''; items.push({title, link}); } } }
     let eid=0;
@@ -257,14 +250,14 @@ async function handleOsirisCctvNative(req, res, parsedUrl){
   const wantUS = !qRegion || qRegion.includes('us');
   const fetches = [];
   if(wantUK){
-    fetches.push(fetchStealth('https://api.tfl.gov.uk/Place/Type/JamCam', { timeout: 8000 }).then(r=>{
+    fetches.push(fetchPolite('https://api.tfl.gov.uk/Place/Type/JamCam', { timeout: 8000 }).then(r=>{
       if(!r.ok) return []; const data = r.json(); if(!Array.isArray(data)) return [];
       return data.slice(0,80).map(cam=>{ const imgProp = cam.additionalProperties?.find(p=>p.key==='imageUrl'); const camId=cam.id?.replace('JamCams_','')||''; return { id:`tfl-${cam.id}`, lat: cam.lat, lng: cam.lon, name: cam.commonName||'London JamCam', city:'London', country:'UK', feed_url: imgProp?.value || `https://s3-eu-west-1.amazonaws.com/jamcams.tfl.gov.uk/${camId}.jpg`, source:'TfL' }; }).filter(c=>c.lat && c.lng);
     }).catch(()=>[]));
     regions.push('uk');
   }
   if(wantUS){
-    fetches.push(fetchStealth('https://data.wsdot.wa.gov/log/public/cameras.json', { timeout: 8000 }).then(r=>{
+    fetches.push(fetchPolite('https://data.wsdot.wa.gov/log/public/cameras.json', { timeout: 8000 }).then(r=>{
       if(!r.ok) return []; const data = r.json(); if(!Array.isArray(data)) return []; return data.slice(0,60).map(cam=>({ id:`wsdot-${cam.CameraID}`, lat: cam.CameraLocation?.Latitude, lng: cam.CameraLocation?.Longitude, name: cam.Title||'WSDOT Camera', city:'Washington', country:'US', feed_url: cam.ImageURL||'', source:'WSDOT' })).filter(c=>c.lat&&c.lng&&c.feed_url);
     }).catch(()=>[]));
     regions.push('us-west');
@@ -420,6 +413,34 @@ const server = http.createServer(async (req, res) => {
   if (safePath === '/' || safePath === '.') safePath = 'index.html';
   if (safePath.startsWith('/')) safePath = safePath.slice(1);
 
+  // ── Embedded OSIRIS — proxy to embedded server on port 4000 ──
+  if (safePath.startsWith('osiris-embed/')) {
+    const subPath = req.url.replace(/^\/osiris-embed/, '');
+    const proxyTarget = `http://localhost:${EMBED_PORT}${subPath || '/'}`;
+    const client = new URL(proxyTarget);
+    const moduleClient = client.protocol === 'https:' ? https : http;
+    const proxyReq = moduleClient.get(proxyTarget, { timeout: 10000 }, (proxyRes) => {
+      res.writeHead(proxyRes.statusCode || 200, {
+        'Content-Type': proxyRes.headers['content-type'] || 'text/html',
+        ...getCorsHeaders()
+      });
+      proxyRes.pipe(res);
+    });
+    proxyReq.on('error', (e) => {
+      console.warn('[OSIRIS EMBED PROXY ERROR]', e.message, 'target:', proxyTarget);
+      res.writeHead(502, { 'Content-Type': 'text/html', ...getCorsHeaders() });
+      res.end('<!DOCTYPE html><html><head><meta charset="utf-8"><title>OSIRIS — Not Ready</title><style>body{background:#0f0f23;color:#fff;font-family:sans-serif;padding:60px;text-align:center;line-height:1.6;}</style></head><body><h1>🛰 OSIRIS — Build Required</h1><p>The embedded OSIRIS server (<code>osiris-embed/server.js</code>) is not running or the build is missing.</p><ol style="text-align:left;display:inline-block;margin-top:20px;font-size:14px;line-height:2;color:#ccc;"><li>Run <code>npm install</code> in <code>D:\Projects\osiris</code></li><li>Run <code>npm run build</code> in <code>D:\Projects\osiris</code></li><li>Copy <code>.next/standalone/osiris/*</code> to <code>D:\Projects\global-earth-project\osiris-embed/</code></li><li>Restart the server (<code>node server.js</code>)</li></ol><a href="/" style="display:inline-block;margin-top:30px;padding:10px 20px;background:#a78bfa;color:#fff;border-radius:6px;text-decoration:none;font-weight:600;">← Back to Global Earth</a></body></html>');
+    });
+    return;
+  }
+
+  // Safe config endpoint (early, before proxy/404)
+  if (safePath === 'api/config/public') {
+    const safeConfig = { OSIRIS: { enabled: false, url: OSIRIS_URL }, LAYERS: { disasters: true, wars: true }, GLOBE_SETTINGS: { baseColor: '#1a202c' } };
+    res.writeHead(200, { 'Content-Type': 'application/json', ...getCorsHeaders() });
+    res.end(JSON.stringify(safeConfig)); return;
+  }
+
   if (safePath === 'api/stream') { handleSSE(req, res); return; }
   if (safePath === 'api/health') {
     res.writeHead(200, { 'Content-Type': 'application/json', ...getCorsHeaders() });
@@ -444,27 +465,26 @@ const server = http.createServer(async (req, res) => {
     if (targetUrl) { await handleProxy(req, res, targetUrl); return; }
   }
   if (safePath.startsWith('api/')) {
+    // Safe config endpoint (before generic 404)
+    if (safePath === 'api/config/public') {
+      const safeConfig = { OSIRIS: { enabled: false, url: OSIRIS_URL }, LAYERS: { disasters: true, wars: true }, GLOBE_SETTINGS: { baseColor: '#1a202c' } };
+      res.writeHead(200, { 'Content-Type': 'application/json', ...getCorsHeaders() });
+      res.end(JSON.stringify(safeConfig)); return;
+    }
     res.writeHead(404, { 'Content-Type': 'application/json', ...getCorsHeaders() });
     res.end(JSON.stringify({ error: 'Unknown API endpoint', merged: 'osiris+global-earth', hint: 'try /api/osiris/maritime, /api/osiris/conflicts, /api/osiris/cctv, /api/health' }));
     return;
   }
-  // Server-side injection for js/config.js — inject .env keys so browser gets real values
+  // Config injection removed — secrets stay on server
   if (safePath === 'js/config.js') {
-    const injected = getInjectedConfigJs();
-    if (injected !== null) {
-      res.writeHead(200, {
-        'Content-Type': 'application/javascript',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0',
-        'X-Content-Type-Options': 'nosniff',
-        ...getCorsHeaders()
-      });
-      res.end(injected);
-      return;
-    }
+    res.writeHead(200, { 'Content-Type': 'application/javascript', 'Cache-Control': 'no-cache', ...getCorsHeaders() });
+    res.end('/* Config served safely via /api/config/public — no secret injection */\nconst CONFIG={CESIUM_TOKEN:"",FIRMS_MAP_KEY:"",NASA_API_KEY:"DEMO_KEY"};'); return;
   }
-  const filePath = path.join(ROOT, safePath);
+  const filePath = path.resolve(path.join(ROOT, safePath));
+  const rootResolved = path.resolve(ROOT);
+  if (!filePath.startsWith(rootResolved + path.sep) && filePath !== rootResolved) {
+    res.writeHead(403); res.end('Forbidden'); return;
+  }
   fs.stat(filePath, (err, stat) => {
     if (err || !stat.isFile()) {
       const fallback404 = path.join(ROOT, '404.html');
@@ -486,6 +506,30 @@ const server = http.createServer(async (req, res) => {
 process.on('uncaughtException', e=>{ console.error('uncaught', e && e.stack || e); });
 process.on('unhandledRejection', e=>{ console.error('unhandledRejection', e && e.stack || e); });
 
+// Auto-start embedded OSIRIS on port 4000 (only once)
+function startEmbeddedOsiris() {
+  if (EMBED_STARTED.value) return;
+  EMBED_STARTED.value = true;
+  try {
+    const embedDir = path.join(ROOT, 'osiris-embed');
+    if (fs.existsSync(path.join(embedDir, 'server.js'))) {
+      const child = spawn('node', [path.join(embedDir, 'server.js')], {
+        cwd: embedDir,
+        env: { ...process.env, PORT: String(EMBED_PORT) },
+        stdio: 'inherit',
+        detached: true
+      });
+      console.log(`[OSIRIS EMBED] Starting embedded OSIRIS on port ${EMBED_PORT}`);
+      child.on('exit', (code) => console.log(`[OSIRIS EMBED] Exited with code ${code}`));
+    } else {
+      console.log('[OSIRIS EMBED] Server not found at osiris-embed/server.js — skip');
+    }
+  } catch (e) {
+    console.log('[OSIRIS EMBED] Failed to start:', e.message);
+  }
+}
+startEmbeddedOsiris();
+
 setInterval(() => {
   const stale = Date.now() - CACHE_TTL * 2;
   for (const [key, val] of cache) { if (val.time < stale) cache.delete(key); }
@@ -499,9 +543,7 @@ server.listen(PORT, () => {
   console.log(`Health check: /api/health`);
   if (!UNSPLASH_KEY) console.log('Note: UNSPLASH_ACCESS_KEY not set - /api/unsplash will return 503');
   else console.log('Unsplash: key set');
-  // Log config injection status (do not print secret values)
-  const cesiumSet = !!(process.env.CESIUM_TOKEN && process.env.CESIUM_TOKEN.length > 20);
-  const firmsSet = !!(process.env.FIRMS_MAP_KEY && process.env.FIRMS_MAP_KEY.length > 5);
-  console.log(`Config injection: CESIUM_TOKEN ${cesiumSet ? 'set' : 'empty'} | FIRMS_MAP_KEY ${firmsSet ? 'set' : 'empty'} → js/config.js will be served injected`);
+  // Config: do NOT log secret values
+  console.log('Config: secrets loaded from .env (not printed)');
   console.log(`OSiris proxy target (fallback): ${OSIRIS_URL}`);
 });

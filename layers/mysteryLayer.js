@@ -6,6 +6,7 @@ const MysteryLayer = {
         if (!this.visible) return;
         try {
             const response = await fetch('data/mysteries.json');
+            if (!response.ok) throw new Error('HTTP ' + response.status);
             const data = await response.json();
             this.renderMarkers(data);
             console.log(`Mysteries Layer Initialized: ${data.length} markers`);
