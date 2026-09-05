@@ -213,19 +213,32 @@ const LiveApi = {
     },
 
     async fetchFirmsFires() {
-        if (!CONFIG.FIRMS_MAP_KEY) return [];
         try {
             const today = new Date();
             const yesterday = new Date(today);
             yesterday.setDate(yesterday.getDate() - 1);
             const dateStr = yesterday.toISOString().slice(0, 10).replace(/-/g, '');
-            const url = this.SOURCES.FIRMS + '/' + CONFIG.FIRMS_MAP_KEY + '/VIIRS_SNPP_NRT/world/1/1/' + dateStr + '.csv';
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 15000);
-            const res = await fetch(url, { signal: controller.signal });
-            clearTimeout(timeout);
-            if (!res.ok) return [];
-            const text = await res.text();
+            let text = '';
+            // Preferred: server-side proxy (FIRMS_MAP_KEY stays secret on server)
+            try {
+                const proxyRes = await fetch('api/firms?date=' + dateStr);
+                if (proxyRes.ok) {
+                    const payload = await proxyRes.json();
+                    text = payload.data || '';
+                }
+            } catch (_) { /* fall through to direct */ }
+            // Fallback: direct FIRMS call when key supplied via ?firms_key=
+            if (!text && CONFIG.FIRMS_MAP_KEY) {
+                const url = this.SOURCES.FIRMS + '/' + CONFIG.FIRMS_MAP_KEY + '/VIIRS_SNPP_NRT/world/1/1/' + dateStr + '.csv';
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 15000);
+                try {
+                    const res = await fetch(url, { signal: controller.signal });
+                    clearTimeout(timeout);
+                    if (res.ok) text = await res.text();
+                } catch (_) { clearTimeout(timeout); }
+            }
+            if (!text) return [];
             const lines = text.split('\n').slice(1, 60);
             return lines.map(line => {
                 const cols = line.split(',');

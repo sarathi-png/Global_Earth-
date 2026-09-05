@@ -8,13 +8,30 @@ const GlobeManager = {
     ],
 
     async init(containerId) {
+        // Guard 1: WebGL support (headless / blocked canvas environments)
+        try {
+            const testCanvas = document.createElement('canvas');
+            if (!(window.WebGLRenderingContext &&
+                (testCanvas.getContext('webgl') || testCanvas.getContext('experimental-webgl')))) {
+                this.showFatal(containerId, 'WebGL Unavailable',
+                    'This browser (or its current settings) does not provide WebGL, which the 3D globe requires.');
+                return null;
+            }
+        } catch (_) { /* proceed — Viewer will report */ }
+
+        // Guard 2: Cesium failed to load (CDN + vendor both blocked)
+        if (typeof Cesium === 'undefined') {
+            this.showFatal(containerId, 'Engine Failed to Load',
+                'The CesiumJS library could not be loaded from the local bundle or any CDN fallback. Check your connection or ad/script blocker, then retry.');
+            return null;
+        }
         try {
             const viewerOptions = {
                 animation: false,
                 baseLayerPicker: false,
                 fullscreenButton: false,
                 geocoder: false,
-                homeButton: true,
+                homeButton: false, // custom #homeBtn is used instead
                 infoBox: false,
                 sceneModePicker: false,
                 selectionIndicator: false,
@@ -73,22 +90,28 @@ const GlobeManager = {
             return this.viewer;
         } catch (error) {
             console.error("Error initializing Cesium Globe:", error);
-            const container = document.getElementById(containerId);
-            if (container) {
-                container.innerHTML = `
-                    <div class="glass-panel" style="margin: 20px; padding: 30px; color: #ff3b30; text-align: center;">
-                        <i class="fas fa-exclamation-triangle" style="font-size: 2rem; margin-bottom: 15px;"></i>
-                        <h3>Engine Initialization Failure</h3>
-                        <p style="color: #ccc; margin-top: 10px;">The 3D engine failed to start. This usually happens due to script blocking or invalid configuration.</p>
-                        <ul style="text-align: left; display: inline-block; margin-top: 15px; color: #aaa;">
-                            <li>Check your internet connection</li>
-                            <li>Ensure CesiumJS script is loaded</li>
-                            <li>Add a valid CESIUM_TOKEN in <code style="color: #fc3d21;">js/config.js</code></li>
-                        </ul>
-                    </div>
-                `;
-            }
+            this.showFatal(containerId, 'Engine Initialization Failure',
+                'The 3D engine failed to start. This usually happens due to script blocking, missing WebGL, or an invalid Cesium Ion token.');
+            return null;
         }
+    },
+
+    showFatal(containerId, title, detail) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        container.innerHTML = `
+            <div class="glass-panel globe-fatal">
+                <i class="fas fa-exclamation-triangle globe-fatal-icon"></i>
+                <h3>${title}</h3>
+                <p class="globe-fatal-detail">${detail}</p>
+                <div class="globe-fatal-actions">
+                    <button class="fatal-retry-btn" onclick="location.reload()">
+                        <i class="fas fa-rotate-right"></i> Retry
+                    </button>
+                    <span class="globe-fatal-hint">Tip: set a valid CESIUM_TOKEN env var for Ion imagery, or run fully offline with the bundled texture.</span>
+                </div>
+            </div>
+        `;
     },
 
     async addGIBSLayer(type) {
@@ -238,7 +261,9 @@ const GlobeManager = {
     },
 
     async setupLocalImagery() {
-        this.viewer.imageryLayers.removeAll();
+        try {
+            this.viewer.imageryLayers.removeAll();
+        } catch (_) { /* viewer may be tearing down */ }
         try {
             const provider = await Cesium.SingleTileImageryProvider.fromUrl(
                 'assets/textures/earth-texture.jpg'
@@ -247,7 +272,11 @@ const GlobeManager = {
             console.log("Bundled earth texture imagery active.");
         } catch (e) {
             console.warn("Local texture imagery failed; trying OSM.", e);
-            await this.setupFallbackImagery();
+            try {
+                await this.setupFallbackImagery();
+            } catch (e2) {
+                console.warn("All imagery fallbacks failed; rendering plain ellipsoid.", e2);
+            }
         }
     },
 

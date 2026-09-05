@@ -20,6 +20,7 @@ const URLStateManager = {
 
     init() {
         this.params = new URLSearchParams(window.location.search);
+        if (!window.GlobeManager || !GlobeManager.viewer) return; // engine offline — skip camera restore
         if (this.params.has('lat') && this.params.has('lng')) {
             const lat = parseFloat(this.params.get('lat'));
             const lng = parseFloat(this.params.get('lng'));
@@ -49,7 +50,7 @@ const URLStateManager = {
     },
 
     update() {
-        if (!GlobeManager.viewer) return;
+        if (!window.GlobeManager || !GlobeManager.viewer || typeof Cesium === 'undefined') return;
         const cam = GlobeManager.viewer.camera;
         const carto = Cesium.Cartographic.fromCartesian(cam.position);
         const params = new URLSearchParams();
@@ -81,6 +82,18 @@ window.URLStateManager = URLStateManager;
 // Global Application Bootstrap
 document.addEventListener('DOMContentLoaded', async () => {
     console.log("Initializing Intelligence Platform...");
+
+    // Wait for the Cesium loader chain (local vendor + CDN fallbacks) before
+    // booting the engine, so a slow CDN doesn't race the app. Non-fatal:
+    // UI layers boot regardless and no-op gracefully without a viewer.
+    if (window.__cesiumReady) {
+        try {
+            const src = await window.__cesiumReady;
+            console.log("Cesium library ready via " + src);
+        } catch (e) {
+            console.warn("Cesium library unavailable, continuing in degraded mode:", e.message);
+        }
+    }
 
     try {
         await GlobeManager.init('globeContainer');
@@ -124,7 +137,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             if (typeof SearchEngine !== 'undefined') {
                 SearchEngine.init();
-                requestIdleCallback(() => SearchEngine.updateIndex());
+                const deferIndex = () => { try { SearchEngine.updateIndex(); } catch (e) {} };
+                if (typeof requestIdleCallback !== 'undefined') requestIdleCallback(deferIndex);
+                else setTimeout(deferIndex, 0);
             }
         } catch (e) { console.warn("SearchEngine init failed:", e); }
 
@@ -149,17 +164,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         console.log("System Online");
         
-        window.DisastersLayer = DisastersLayer;
-        window.WarsLayer = WarsLayer;
-        window.SearchEngine = SearchEngine;
-        window.TimelineManager = TimelineManager;
-        window.LiveLayer = LiveLayer;
-        if (typeof NotificationSystem !== 'undefined' && LiveLayer._lastEvents) { NotificationSystem.processEvents(LiveLayer._lastEvents); }
+        window.DisastersLayer = (typeof DisastersLayer !== 'undefined') ? DisastersLayer : window.DisastersLayer;
+        window.WarsLayer = (typeof WarsLayer !== 'undefined') ? WarsLayer : window.WarsLayer;
+        window.SearchEngine = (typeof SearchEngine !== 'undefined') ? SearchEngine : window.SearchEngine;
+        window.TimelineManager = (typeof TimelineManager !== 'undefined') ? TimelineManager : window.TimelineManager;
+        window.LiveLayer = (typeof LiveLayer !== 'undefined') ? LiveLayer : window.LiveLayer;
+        if (typeof NotificationSystem !== 'undefined' && window.LiveLayer && window.LiveLayer._lastEvents) { NotificationSystem.processEvents(window.LiveLayer._lastEvents); }
         window.App = { status: "Online", version: "2.1.0" };
     }, 0);
 });
 
 // ── Shared toggle ID registry ──
+// NOTE: layer objects are resolved lazily via window[] (never bare globals)
+// so a single failed layer script can never break the whole boot file.
 const TOGGLE_IDS = [
     'toggleDisasters','toggleWars','toggleMysteries','toggleHistory',
     'toggleAircraft','toggleSat','toggleWeather','toggleBorders',
@@ -167,23 +184,30 @@ const TOGGLE_IDS = [
     'toggleDayNight','toggleStreetView','toggleOsiris'
 ];
 
+const TOGGLE_ID_TO_LAYER_NAME = {
+    'toggleDisasters':'DisastersLayer','toggleWars':'WarsLayer',
+    'toggleMysteries':'MysteryLayer','toggleHistory':'HistoricalLayer',
+    'toggleAircraft':'AircraftLayer','toggleSat':'SatelliteLayer',
+    'toggleWeather':'WeatherLayer','toggleBorders':'BordersLayer',
+    'toggleLive':'LiveLayer','toggleGIBS':null,
+    'toggleHeatmap':'HeatmapLayer','toggleRipple':'RippleArcLayer',
+    'toggleDayNight':'DayNightLayer','toggleStreetView':'StreetViewLayer',
+    'toggleOsiris':'OsirisLayer'
+};
+
+function layerByToggle(toggleId) {
+    const name = TOGGLE_ID_TO_LAYER_NAME[toggleId];
+    if (!name) return null;
+    const layer = window[name];
+    return (layer && typeof layer === 'object') ? layer : null;
+}
+
 const TOGGLE_ID_TO_LEGEND_CLASS = {
     'toggleDisasters':'disasters','toggleWars':'wars','toggleMysteries':'mysteries',
     'toggleHistory':'history','toggleAircraft':'aircraft','toggleSat':'sat',
     'toggleWeather':'weather','toggleBorders':'borders','toggleLive':'live',
     'toggleGIBS':'gibs','toggleHeatmap':'heatmap','toggleRipple':'ripple',
     'toggleDayNight':'daynight','toggleStreetView':'streetview','toggleOsiris':'osiris'
-};
-
-const TOGGLE_ID_TO_LAYER = {
-    'toggleDisasters':DisastersLayer,'toggleWars':WarsLayer,
-    'toggleMysteries':MysteryLayer,'toggleHistory':HistoricalLayer,
-    'toggleAircraft':AircraftLayer,'toggleSat':SatelliteLayer,
-    'toggleWeather':WeatherLayer,'toggleBorders':BordersLayer,
-    'toggleLive':LiveLayer,'toggleGIBS':null,
-    'toggleHeatmap':HeatmapLayer,'toggleRipple':RippleArcLayer,
-    'toggleDayNight':DayNightLayer,'toggleStreetView':StreetViewLayer,
-    'toggleOsiris':OsirisLayer
 };
 
 function updateLegendVisibility() {
@@ -199,20 +223,25 @@ function updateLegendVisibility() {
 function syncAllLayerVisibility() {
     TOGGLE_IDS.forEach(toggleId => {
         const el = document.getElementById(toggleId);
-        const layer = TOGGLE_ID_TO_LAYER[toggleId];
+        const layer = layerByToggle(toggleId);
         if (!el || !layer) return;
-        const isChecked = el.checked;
-        layer.visible = isChecked;
-        if (layer.toggleVisibility) layer.toggleVisibility(isChecked);
+        try {
+            const isChecked = el.checked;
+            layer.visible = isChecked;
+            if (layer.toggleVisibility) layer.toggleVisibility(isChecked);
+        } catch (e) { console.warn(toggleId, 'sync failed:', e); }
     });
 }
 
 function _processNotifications(events) { if (typeof NotificationSystem !== 'undefined' && events) NotificationSystem.processEvents(events); }
 function updateGlobalStats() {
     let total = 0;
-    [DisastersLayer,WarsLayer,MysteryLayer,HistoricalLayer,BordersLayer,AircraftLayer,SatelliteLayer,LiveLayer,HeatmapLayer,RippleArcLayer,OsirisLayer].forEach(l => {
-        if (!l) return;
-        if (l.visible && l.entities) l.entities.forEach(e => { if (e.show) total++; });
+    ['DisastersLayer','WarsLayer','MysteryLayer','HistoricalLayer','BordersLayer','AircraftLayer','SatelliteLayer','LiveLayer','HeatmapLayer','RippleArcLayer','OsirisLayer'].forEach(name => {
+        const l = window[name];
+        if (!l || !l.entities) return;
+        try {
+            if (l.visible) l.entities.forEach(e => { if (e && e.show) total++; });
+        } catch (_) { /* partially-initialized layer */ }
     });
     const badge = document.getElementById('activeMarkerCount');
     if (badge) badge.innerText = total;
@@ -220,21 +249,14 @@ function updateGlobalStats() {
 
 function setupUIListeners() {
     const toggles = [
-        { id: 'toggleDisasters', layer: DisastersLayer },
-        { id: 'toggleWars', layer: WarsLayer },
-        { id: 'toggleMysteries', layer: MysteryLayer },
-        { id: 'toggleHistory', layer: HistoricalLayer },
-        { id: 'toggleAircraft', layer: AircraftLayer },
-        { id: 'toggleSat', layer: SatelliteLayer },
-        { id: 'toggleWeather', layer: WeatherLayer },
-        { id: 'toggleBorders', layer: BordersLayer },
-        { id: 'toggleLive', layer: LiveLayer },
-        { id: 'toggleGIBS', layer: null },
-        { id: 'toggleHeatmap', layer: HeatmapLayer },
-        { id: 'toggleRipple', layer: RippleArcLayer },
-        { id: 'toggleDayNight', layer: DayNightLayer },
-        { id: 'toggleStreetView', layer: StreetViewLayer },
-        { id: 'toggleOsiris', layer: OsirisLayer }
+        { id: 'toggleDisasters' }, { id: 'toggleWars' },
+        { id: 'toggleMysteries' }, { id: 'toggleHistory' },
+        { id: 'toggleAircraft' }, { id: 'toggleSat' },
+        { id: 'toggleWeather' }, { id: 'toggleBorders' },
+        { id: 'toggleLive' }, { id: 'toggleGIBS' },
+        { id: 'toggleHeatmap' }, { id: 'toggleRipple' },
+        { id: 'toggleDayNight' }, { id: 'toggleStreetView' },
+        { id: 'toggleOsiris' }
     ];
 
     toggles.forEach(t => {
@@ -245,11 +267,14 @@ function setupUIListeners() {
                     GIBSLayerManager.toggle(e.target.checked);
                     return;
                 }
-                if (t.layer) {
-                    t.layer.visible = e.target.checked;
-                    if (t.layer.toggleVisibility) {
-                        t.layer.toggleVisibility(e.target.checked);
-                    }
+                const layer = layerByToggle(t.id);
+                if (layer) {
+                    try {
+                        layer.visible = e.target.checked;
+                        if (layer.toggleVisibility) {
+                            layer.toggleVisibility(e.target.checked);
+                        }
+                    } catch (err) { console.warn(t.id, 'toggle failed:', err); }
                     updateGlobalStats();
                     if (window.TimelineManager && window.TimelineManager.applyFilters) {
                         window.TimelineManager.applyFilters();
@@ -279,6 +304,19 @@ function setupUIListeners() {
             try { DrawerManager.close(); } catch(e) {}
             try { DrawerManager.closeModal(); } catch(e) {}
         }
+    }
+
+    var toggleSidebarBtn = document.getElementById('toggleSidebar');
+    if (toggleSidebarBtn) {
+        toggleSidebarBtn.addEventListener('click', function () {
+            document.body.classList.toggle('sidebar-collapsed');
+        });
+    }
+    var sidebarFab = document.getElementById('sidebarFab');
+    if (sidebarFab) {
+        sidebarFab.addEventListener('click', function () {
+            document.body.classList.toggle('sidebar-open');
+        });
     }
 
     var homeBtn = document.getElementById('homeBtn');
@@ -324,16 +362,32 @@ function setupUIListeners() {
     }
 
     // Cleanup previous handler if re-initializing
-    if (window._cesiumClickHandler) { window._cesiumClickHandler.destroy(); }
-    if (window.GlobeManager && window.GlobeManager.viewer) {
+    if (window._cesiumClickHandler) { try { window._cesiumClickHandler.destroy(); } catch (_) {} window._cesiumClickHandler = null; }
+    if (typeof Cesium !== 'undefined' && window.GlobeManager && window.GlobeManager.viewer) {
         var viewer = window.GlobeManager.viewer;
         window._cesiumClickHandler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
-        window._cesiumClickHandler.setInputAction(function() { hideUI(); }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+        // Hide chrome only on empty-globe clicks (not marker picks, not drags):
+        // a LEFT_DOWN+LEFT_UP pair with minimal movement and no picked entity.
+        var downPos = null;
+        window._cesiumClickHandler.setInputAction(function (movement) {
+            downPos = movement.position;
+        }, Cesium.ScreenSpaceEventType.LEFT_DOWN);
+        window._cesiumClickHandler.setInputAction(function (movement) {
+            try {
+                if (!downPos) return;
+                var dx = movement.position.x - downPos.x;
+                var dy = movement.position.y - downPos.y;
+                downPos = null;
+                if (dx * dx + dy * dy > 25) return; // it was a drag
+                var picked = viewer.scene.pick(movement.position);
+                if (!picked) hideUI();
+            } catch (_) { /* picking not ready */ }
+        }, Cesium.ScreenSpaceEventType.LEFT_UP);
     }
 
     // Cleanup on page unload
     window.addEventListener('beforeunload', function() {
-        if (window._cesiumClickHandler) window._cesiumClickHandler.destroy();
+        if (window._cesiumClickHandler) { try { window._cesiumClickHandler.destroy(); } catch (_) {} }
         if (window._urlStateInterval) clearInterval(window._urlStateInterval);
         if (window.LiveLayer && window.LiveLayer.destroy) window.LiveLayer.destroy();
         if (window.AircraftLayer && window.AircraftLayer.destroy) window.AircraftLayer.destroy();

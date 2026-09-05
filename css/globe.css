@@ -48,3 +48,54 @@
 .cesium-widget {
     z-index: 0 !important;
 }
+
+/* Fatal engine panel (globe.js showFatal + fallback.js banner) */
+.globe-fatal {
+    margin: 20px;
+    padding: 30px;
+    color: #ff3b30;
+    text-align: center;
+    position: relative;
+    z-index: 5;
+}
+.globe-fatal-icon {
+    font-size: 2rem;
+    margin-bottom: 15px;
+}
+.globe-fatal h3 {
+    margin-bottom: 10px;
+}
+.globe-fatal-detail {
+    color: #ccc;
+    margin-top: 10px;
+    font-size: 0.85rem;
+    line-height: 1.6;
+}
+.globe-fatal-actions {
+    margin-top: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+.fatal-retry-btn {
+    padding: 10px 22px;
+    border-radius: 8px;
+    background: rgba(252, 61, 33, 0.15);
+    border: 1px solid var(--accent-primary);
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.85rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.fatal-retry-btn:hover {
+    background: rgba(252, 61, 33, 0.3);
+}
+.globe-fatal-hint {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    max-width: 340px;
+}

@@ -1,0 +1,285 @@
+/* ── Layout system: single source of truth for panel placement ──
+   Loaded LAST so these rules win over per-component stylesheets.
+   Desktop: grid slots (sidebar | center); right dock + drawer are fixed
+   overlays that never overlap each other. Mobile: overlay mode.
+   Z-index scale: globe 0 / panels 10-30 / search 50 / popup 60 /
+                  feed-panel 70 / drawer 80 / fab 90 / modal 200 / toasts 300. */
+
+#appContainer {
+    display: grid;
+    grid-template-columns: 340px minmax(0, 1fr);
+    grid-template-rows: 76px minmax(0, 1fr) auto;
+    gap: 12px 16px;
+    padding: 16px;
+    pointer-events: none; /* gaps let globe drags pass through */
+}
+#appContainer > * { pointer-events: auto; }
+
+/* ── Slot assignments (override absolute positioning) ── */
+#sidebar {
+    grid-area: 1 / 1 / 4 / 2;
+    position: relative;
+    top: auto; left: auto; bottom: auto;
+    width: 100%;
+    max-height: none;
+    height: 100%;
+    min-height: 0;
+    z-index: 20;
+}
+#searchBar {
+    grid-area: 1 / 2 / 2 / 3;
+    position: relative;
+    top: auto; left: auto;
+    transform: none;
+    width: 100%;
+    max-width: 640px;
+    justify-self: center;
+    align-self: start;
+    height: 52px;
+    z-index: 50;
+}
+.search-results { z-index: 51; }
+#timeline {
+    grid-area: 3 / 2 / 4 / 3;
+    position: relative;
+    left: auto; right: auto; bottom: auto;
+    z-index: 20;
+}
+
+/* ── Right dock: legend stacked over action rail, one fixed unit ── */
+#rightDock {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    width: 280px;
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    z-index: 20;
+}
+#legend {
+    position: relative;
+    right: auto; bottom: auto;
+    min-width: 0;
+    max-width: none;
+    width: 100%;
+    transition: opacity 0.25s ease, visibility 0.25s ease;
+}
+#actionRail {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+}
+.home-btn,
+.random-btn {
+    position: static;
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+}
+#eventFeed { position: relative; inset: auto; z-index: 30; }
+#feedToggle { width: 44px; height: 44px; }
+.feed-panel {
+    position: absolute;
+    bottom: 56px;
+    right: 0;
+    width: min(360px, calc(100vw - 32px));
+    z-index: 70;
+}
+
+/* ── Drawer: fixed overlay, owns the right edge when open ── */
+#rightDrawer {
+    position: fixed;
+    top: 16px; right: 16px; bottom: 16px;
+    width: min(28rem, calc(100vw - 32px));
+    z-index: 80;
+}
+/* Dock yields while the drawer covers it */
+body:has(#rightDrawer.open) #rightDock {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+#rightDock { transition: opacity 0.25s ease, visibility 0.25s ease; }
+
+/* ── Toasts: clear of search (top-center) and drawer (right) ── */
+#toastContainer {
+    top: 16px;
+    right: 412px;
+    z-index: 300;
+}
+body:not(:has(#rightDrawer.open)) #toastContainer { right: 312px; }
+
+/* ── Hover popup: cursor-following, viewport-clamped by JS ── */
+#popup {
+    position: fixed;
+    left: 0;
+    top: 0;
+    max-width: 300px;
+    padding: 12px 14px;
+    pointer-events: none;
+    z-index: 60;
+    will-change: transform;
+}
+#popup h4 { font-size: 0.9rem; margin-bottom: 6px; }
+#popupMeta { display: flex; align-items: center; gap: 8px; font-size: 0.75rem; }
+
+/* ── Sidebar layer groups ── */
+.layer-group {
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    background: rgba(255, 255, 255, 0.015);
+    overflow: hidden;
+}
+.layer-group > summary {
+    cursor: pointer;
+    padding: 9px 12px;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--text-secondary);
+    font-weight: 600;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    user-select: none;
+}
+.layer-group > summary::-webkit-details-marker { display: none; }
+.layer-group > summary::before {
+    content: "▸";
+    font-size: 0.7rem;
+    color: var(--accent-primary);
+    transition: transform 0.15s ease;
+}
+.layer-group[open] > summary::before { transform: rotate(90deg); }
+.layer-group > summary:hover { color: var(--text-primary); }
+.layer-group .layer-item { margin: 2px 6px; }
+.layer-group .layer-item:last-child { margin-bottom: 6px; }
+.merged-tag { opacity: 0.6; font-size: 10px; }
+.osiris-sub {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding-left: 28px;
+    opacity: 0.85;
+    font-size: 11px;
+    border-left: 2px solid #a78bfa;
+    margin-left: 16px;
+    cursor: default;
+}
+.osiris-sub:hover { border-color: #a78bfa; }
+.osiris-cctv { color: #a78bfa; }
+.osiris-ships { color: #38bdf8; }
+.osiris-choke { color: #f59e0b; }
+.osiris-conflict { color: #ef4444; }
+.osiris-flights { color: #22c55e; }
+.osiris-sats { color: #f97316; }
+.osiris-meta { font-size: 10px; opacity: 0.6; }
+.osiris-meta a { color: #a78bfa; }
+
+/* ── Sidebar collapse (desktop slim rail) ── */
+body.sidebar-collapsed #appContainer {
+    grid-template-columns: 64px minmax(0, 1fr);
+}
+body.sidebar-collapsed #sidebar { padding: 12px 8px; overflow-x: hidden; }
+body.sidebar-collapsed #sidebar .layer-controls,
+body.sidebar-collapsed #sidebar .status-indicators,
+body.sidebar-collapsed #sidebar #liveStats,
+body.sidebar-collapsed #sidebar .logo span { display: none; }
+body.sidebar-collapsed #sidebar .sidebar-header { justify-content: center; border-bottom: none; padding-bottom: 0; }
+
+/* ── Floating sidebar button (mobile only) ── */
+#sidebarFab {
+    display: none;
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    z-index: 90;
+    width: 44px;
+    height: 44px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    font-size: 1rem;
+}
+
+/* ── Mid screens ── */
+@media (max-width: 1280px) {
+    #appContainer { grid-template-columns: 300px minmax(0, 1fr); }
+    body.sidebar-collapsed #appContainer { grid-template-columns: 64px minmax(0, 1fr); }
+    #rightDock { width: 250px; }
+    #toastContainer { right: 282px; }
+    body:not(:has(#rightDrawer.open)) #toastContainer { right: 282px; }
+}
+
+/* ── Mobile / tablet overlay mode ── */
+@media (max-width: 900px) {
+    #appContainer {
+        display: block;
+        padding: 0;
+        pointer-events: none;
+    }
+    #sidebarFab { display: flex; }
+    #sidebar {
+        position: fixed;
+        top: 0; left: 0; bottom: 0;
+        width: min(22rem, calc(100vw - 4rem));
+        height: auto;
+        max-height: none;
+        z-index: 90;
+        transform: translateX(-110%);
+        transition: transform 0.3s ease;
+        border-radius: 0 12px 12px 0;
+        margin: 0;
+    }
+    body.sidebar-open #sidebar { transform: translateX(0); }
+    body.sidebar-collapsed #sidebar .layer-controls,
+    body.sidebar-collapsed #sidebar .status-indicators,
+    body.sidebar-collapsed #sidebar #liveStats,
+    body.sidebar-collapsed #sidebar .logo span { display: revert; }
+    #searchBar {
+        position: fixed;
+        top: 12px;
+        left: 72px;
+        right: 12px;
+        width: auto;
+        max-width: none;
+        min-width: 0;
+        transform: none;
+    }
+    #timeline {
+        position: fixed;
+        left: 12px;
+        right: 12px;
+        bottom: 12px;
+    }
+    #rightDrawer {
+        top: auto; left: 0; right: 0; bottom: 0;
+        width: 100%;
+        height: 52vh;
+        border-radius: 12px 12px 0 0;
+    }
+    #rightDock {
+        width: auto;
+        max-height: none;
+        background: none;
+        border: none;
+        box-shadow: none;
+        backdrop-filter: none;
+    }
+    #rightDock #legend { display: none; }
+    #actionRail { flex-direction: column; }
+    .feed-panel { position: fixed; bottom: 190px; right: 12px; }
+    #toastContainer {
+        top: 76px;
+        left: 12px;
+        right: 12px;
+    }
+    .toast { min-width: 0; max-width: none; }
+}

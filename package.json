@@ -6,7 +6,8 @@
     "start": "node server.js",
     "dev": "node server.js 3000",
     "deploy": "node scripts/deploy.js",
-    "build": "echo 'Static app - no build needed'"
+    "build": "node scripts/vendor-cesium.js",
+    "vendor": "node scripts/vendor-cesium.js --force"
   },
   "author": "OpenCode",
   "license": "MIT",

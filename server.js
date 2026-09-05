@@ -314,6 +314,40 @@ function handleOsirisNative(req,res,parsedUrl){
   return null; // not handled natively
 }
 
+function handleFirms(req, res, parsedUrl) {
+  const key = process.env.FIRMS_MAP_KEY || '';
+  if (!key) {
+    res.writeHead(503, { 'Content-Type': 'application/json', ...getCorsHeaders() });
+    res.end(JSON.stringify({ error: 'FIRMS_MAP_KEY not configured', data: '' }));
+    return;
+  }
+  const date = /^\d{8}$/.test(parsedUrl.query.date || '') ? parsedUrl.query.date
+    : new Date(Date.now() - 864e5).toISOString().slice(0, 10).replace(/-/g, '');
+  const target = `https://firms.modaps.eosdis.nasa.gov/api/area/csv/${key}/VIIRS_SNPP_NRT/world/1/1/${date}.csv`;
+  const clientIp = req.socket.remoteAddress || 'unknown';
+  if (!checkRateLimit(clientIp)) {
+    res.writeHead(429, { 'Content-Type': 'application/json', ...getCorsHeaders() });
+    res.end(JSON.stringify({ error: 'Rate limit' }));
+    return;
+  }
+  const cacheKey = getCacheKey('firms_' + date);
+  const cached = cache.get(cacheKey);
+  if (cached && Date.now() - cached.time < CACHE_TTL) {
+    res.writeHead(200, { 'Content-Type': 'application/json', ...getCorsHeaders() });
+    res.end(cached.data);
+    return;
+  }
+  fetchUrl(target, 15000).then(result => {
+    const body = JSON.stringify({ data: result.status === 200 ? result.body : '' });
+    if (result.status === 200) cache.set(cacheKey, { data: body, time: Date.now() });
+    res.writeHead(result.status === 200 ? 200 : result.status, { 'Content-Type': 'application/json', ...getCorsHeaders() });
+    res.end(body);
+  }).catch(e => {
+    res.writeHead(502, { 'Content-Type': 'application/json', ...getCorsHeaders() });
+    res.end(JSON.stringify({ error: e.message, data: '' }));
+  });
+}
+
 function handleUnsplash(req, res, parsedUrl) {
   if (!UNSPLASH_KEY) {
     res.writeHead(503, { 'Content-Type': 'application/json', ...getCorsHeaders() });
@@ -448,6 +482,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
   if (safePath === 'api/unsplash') { handleUnsplash(req, res, parsedUrl); return; }
+  if (safePath === 'api/firms') { handleFirms(req, res, parsedUrl); return; }
   // OSIRIS merged native first, then proxy fallback
   if (safePath.startsWith('api/osiris/')) {
     const native = handleOsirisNative(req, res, parsedUrl);
@@ -475,10 +510,21 @@ const server = http.createServer(async (req, res) => {
     res.end(JSON.stringify({ error: 'Unknown API endpoint', merged: 'osiris+global-earth', hint: 'try /api/osiris/maritime, /api/osiris/conflicts, /api/osiris/cctv, /api/health' }));
     return;
   }
-  // Config injection removed — secrets stay on server
+  // Config injection — public browser keys only (never log values).
+  // js/config.js ships with __PLACEHOLDERS__ substituted from env at request time.
   if (safePath === 'js/config.js') {
-    res.writeHead(200, { 'Content-Type': 'application/javascript', 'Cache-Control': 'no-cache', ...getCorsHeaders() });
-    res.end('/* Config served safely via /api/config/public — no secret injection */\nconst CONFIG={CESIUM_TOKEN:"",FIRMS_MAP_KEY:"",NASA_API_KEY:"DEMO_KEY"};'); return;
+    try {
+      let cfg = fs.readFileSync(path.join(ROOT, 'js', 'config.js'), 'utf8');
+      const esc = (s) => String(s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      cfg = cfg.split('__CESIUM_TOKEN__').join(esc(process.env.CESIUM_TOKEN || ''));
+      cfg = cfg.split('__NASA_API_KEY__').join(esc(process.env.NASA_API_KEY || 'DEMO_KEY'));
+      res.writeHead(200, { 'Content-Type': 'application/javascript', 'Cache-Control': 'no-cache', ...getCorsHeaders() });
+      res.end(cfg);
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/javascript', ...getCorsHeaders() });
+      res.end('console.error("config injection failed");const CONFIG={CESIUM_TOKEN:"",FIRMS_MAP_KEY:"",NASA_API_KEY:"DEMO_KEY"};');
+    }
+    return;
   }
   const filePath = path.resolve(path.join(ROOT, safePath));
   const rootResolved = path.resolve(ROOT);

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'geo-intel-v1';
+const CACHE_NAME = 'geo-intel-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -11,7 +11,12 @@ const STATIC_ASSETS = [
   '/css/layers.css',
   '/css/animations.css',
   '/css/responsive.css',
+  '/css/notifications.css',
+  '/css/layout.css',
   '/css/fonts.css',
+  '/vendor/cesium/Cesium.js',
+  '/vendor/cesium/Widgets/widgets.css',
+  '/assets/textures/earth-texture.jpg',
   '/js/config.js',
   '/js/app.js',
   '/js/liveApi.js',
@@ -30,6 +35,13 @@ const STATIC_ASSETS = [
   '/layers/weatherLayer.js',
   '/layers/bordersLayer.js',
   '/layers/liveLayer.js',
+  '/layers/dayNightLayer.js',
+  '/layers/heatmapLayer.js',
+  '/layers/rippleArcLayer.js',
+  '/layers/streetViewLayer.js',
+  '/layers/osirisLayer.js',
+  '/js/notifications.js',
+  '/js/statsDashboard.js',
   '/incidents/markers.js',
   '/incidents/hoverPopup.js',
   '/incidents/clustering.js',

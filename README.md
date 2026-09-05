@@ -128,7 +128,6 @@ Every network path has a catch-and-fallback, so a dead token or missing network 
 core/        Globe, camera, controls, terrain managers
 layers/      One module per data layer (+ osirisLayer.js merged, streetViewLayer.js)
 osiris/      Vendored OSIRIS source: api + lib (+ engine) — merged under single server (osiris-README.md, osiris-LICENSE)
-osiris-src/  Full OSIRIS src snapshot for reference
 incidents/   Marker factory, hover popup, clustering
 search/      Search index + UI
 timeline/    Year slider + playback
@@ -136,10 +135,10 @@ ui/          Incident detail drawer (with StreetView + OSIRIS extra panel)
 animations/  GSAP UI animations, marker pulse
 js/          Bootstrap, config (now with OSIRIS.merged), diagnostics, fallback, image chains
 css/         Stylesheets
-vendor/      CesiumJS, GSAP, Font Awesome
+vendor/      CesiumJS (build-time vendored via scripts/vendor-cesium.js, gitignored), GSAP; Font Awesome via CDN
 data/        JSON datasets + countries.geo.json
-assets/      Bundled earth texture
-server.js    Merged single server: static + proxy + native /api/osiris/* + /api/unsplash
+assets/      App icons + earth texture (build-time vendored, gitignored)
+server.js    Merged single server: static + proxy + native /api/osiris/* + /api/unsplash + /api/firms
 ```
 
 ## Deployment

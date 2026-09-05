@@ -79,6 +79,7 @@ const DrawerManager = {
         if (!this.drawer) return;
         this.drawer.style.transform = '';
         this.drawer.classList.add('open');
+        document.body.classList.add('drawer-open');
         this.isOpen = true;
     },
 
@@ -212,6 +213,7 @@ const DrawerManager = {
     close() {
         if (!this.drawer) return;
         this.drawer.classList.remove('open');
+        document.body.classList.remove('drawer-open');
         this.drawer.style.transform = '';
         this.isOpen = false;
     }

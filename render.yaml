@@ -4,9 +4,19 @@ services:
     runtime: node
     plan: free
     autoDeploy: true
-    buildCommand: npm install
+    buildCommand: npm install && npm run build
     startCommand: node server.js
     envVars:
       - key: NODE_ENV
         value: production
+      - key: CESIUM_TOKEN
+        sync: false
+      - key: FIRMS_MAP_KEY
+        sync: false
+      - key: NASA_API_KEY
+        value: DEMO_KEY
+      - key: UNSPLASH_ACCESS_KEY
+        sync: false
+      - key: OSIRIS_URL
+        value: http://localhost:4000
     healthCheckPath: /api/health

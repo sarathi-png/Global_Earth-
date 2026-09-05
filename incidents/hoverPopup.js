@@ -30,15 +30,21 @@ const HoverPopup = {
         
         this.element.style.display = 'block';
         this.element.classList.remove('hidden');
-        
+
+        // Position: always set left/top (works without GSAP); GSAP only fades.
+        var x = Math.min(position.x + 20, window.innerWidth - 320);
+        var y = Math.max(position.y - 40, 12);
+        this.element.style.left = Math.max(x, 12) + 'px';
+        this.element.style.top = y + 'px';
+        this.element.style.transform = '';
         if (typeof gsap !== 'undefined' && gsap.to) {
-            gsap.to(this.element, {
-                x: position.x + 20,
-                y: position.y - 40,
+            gsap.fromTo(this.element, { opacity: 0 }, {
                 opacity: 1,
                 duration: 0.2,
                 ease: "power2.out"
             });
+        } else {
+            this.element.style.opacity = '1';
         }
     },
 

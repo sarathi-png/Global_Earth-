@@ -1,53 +1,51 @@
-// Fallback script for Cesium load detection
+// Cesium load detection + boot gate.
+// Exposes window.__cesiumReady (resolves with 'local'|CDN source, rejects on timeout)
+// so app boot can wait for late CDN fallbacks instead of racing them.
 (function () {
-  const timeout = 8000; // ms to wait for Cesium to load
-  let cesiumLoaded = false;
+  var TIMEOUT_MS = 12000;
 
-  // Check if Cesium is already defined (maybe loaded synchronously)
-  if (window.Cesium) {
-    cesiumLoaded = true;
+  var resolveFn, rejectFn;
+  window.__cesiumReady = new Promise(function (resolve, reject) {
+    resolveFn = resolve; rejectFn = reject;
+  });
+
+  var settled = false;
+  function settle() {
+    if (settled) return;
+    if (typeof window.Cesium !== 'undefined') {
+      settled = true;
+      resolveFn(window.CESIUM_SOURCE || 'unknown');
+      var banner = document.getElementById('cesium-fallback-banner');
+      if (banner) banner.remove();
+    }
   }
 
-  // Poll for a short period
-  const poller = setInterval(() => {
-    if (window.Cesium) {
-      cesiumLoaded = true;
-      clearInterval(poller);
-    }
-  }, 100);
+  if (typeof window.Cesium !== 'undefined') settle();
+  var poller = setInterval(settle, 100);
 
-  // After timeout, if still not loaded, show fallback
-  setTimeout(() => {
+  setTimeout(function () {
     clearInterval(poller);
-    if (!cesiumLoaded) {
-      // Create fallback banner
-      const banner = document.createElement('div');
-      banner.id = 'cesium-fallback-banner';
-      banner.style = `
-        position: absolute;
-        inset: 0;
-        background: rgba(0,0,0,0.7);
-        color: #fff;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 1000;
-        font-family: sans-serif;
-        pointer-events: none;
-      `;
-      banner.textContent = '3D globe unavailable – showing limited view.';
-      // Insert after globeContainer if exists
-      const globeContainer = document.getElementById('globeContainer');
-      if (globeContainer) {
-        globeContainer.parentNode.insertBefore(banner, globeContainer.nextSibling);
-        // Optionally hide the globe container
-        globeContainer.style.display = 'none';
-      } else {
-        // Fallback: append to body
-        document.body.appendChild(banner);
-      }
-      // Log to console
-      console.warn('[Fallback] Cesium did not load within timeout. Showing fallback UI.');
+    if (settled || typeof window.Cesium !== 'undefined') { settle(); return; }
+    settled = true;
+    rejectFn(new Error('Cesium did not load within timeout'));
+    var globeContainer = document.getElementById('globeContainer');
+    if (document.getElementById('cesium-fallback-banner')) return;
+    var banner = document.createElement('div');
+    banner.id = 'cesium-fallback-banner';
+    banner.className = 'glass-panel globe-fatal';
+    banner.innerHTML =
+      '<i class="fas fa-exclamation-triangle globe-fatal-icon"></i>' +
+      '<h3>3D Library Unavailable</h3>' +
+      '<p class="globe-fatal-detail">CesiumJS did not load within ' + Math.round(TIMEOUT_MS / 1000) +
+      's (local bundle + CDN fallbacks blocked). Search, timeline and saved views still work once the library loads.</p>' +
+      '<div class="globe-fatal-actions">' +
+      '<button class="fatal-retry-btn" onclick="location.reload()">' +
+      '<i class="fas fa-rotate-right"></i> Retry</button></div>';
+    if (globeContainer && globeContainer.parentNode) {
+      globeContainer.parentNode.insertBefore(banner, globeContainer.nextSibling);
+    } else {
+      document.body.appendChild(banner);
     }
-  }, timeout);
+    console.warn('[Fallback] Cesium did not load within timeout. Showing retry UI.');
+  }, TIMEOUT_MS);
 })();

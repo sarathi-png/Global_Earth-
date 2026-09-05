@@ -10,16 +10,35 @@
     <link rel="manifest" href="manifest.json">
     <link rel="icon" type="image/svg+xml" href="assets/icons/icon-192.svg">
     
-    <!-- CesiumJS CDN (fast load, local vendor as fallback) -->
-    <link rel="stylesheet" href="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Widgets/widgets.css">
-    <script src="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Cesium.js"></script>
+    <!-- CesiumJS: local vendor first (same-origin Workers, offline-capable),
+         then pinned CDN fallbacks. Order-safe: document.write runs at parse
+         time so deferred app scripts always see the final Cesium (or none). -->
+    <link rel="stylesheet" href="vendor/cesium/Widgets/widgets.css"
+        onerror="var l=document.createElement('link');l.rel='stylesheet';l.href='https://cdn.jsdelivr.net/npm/cesium@1.119.0/Build/Cesium/Widgets/widgets.css';document.head.appendChild(l);">
+    <script src="vendor/cesium/Cesium.js"></script>
+    <script>
+      // Local-first, then pinned CDN fallbacks. document.write runs at parse
+      // time, so deferred app scripts always see the final result.
+      window.CESIUM_BASE_URL = 'vendor/cesium/';
+      window.CESIUM_SOURCE = 'local';
+      if (typeof Cesium === 'undefined') {
+        document.write('<script src="https://cdn.jsdelivr.net/npm/cesium@1.119.0/Build/Cesium/Cesium.js"><\/script>');
+        window.CESIUM_BASE_URL = 'https://cdn.jsdelivr.net/npm/cesium@1.119.0/Build/Cesium/';
+        window.CESIUM_SOURCE = 'jsdelivr';
+      }
+    </script>
     <script>
       if (typeof Cesium === 'undefined') {
-        document.write('<script src="vendor/cesium/Cesium.js"><\/script>');
-        document.write('<link href="vendor/cesium/Widgets/widgets.css" rel="stylesheet">');
-        window.CESIUM_BASE_URL = 'vendor/cesium/';
-      } else {
+        document.write('<script src="https://unpkg.com/cesium@1.119.0/Build/Cesium/Cesium.js"><\/script>');
+        window.CESIUM_BASE_URL = 'https://unpkg.com/cesium@1.119.0/Build/Cesium/';
+        window.CESIUM_SOURCE = 'unpkg';
+      }
+    </script>
+    <script>
+      if (typeof Cesium === 'undefined') {
+        document.write('<script src="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Cesium.js"><\/script>');
         window.CESIUM_BASE_URL = 'https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/';
+        window.CESIUM_SOURCE = 'cesium-cdn';
       }
     </script>
     
@@ -43,11 +62,17 @@
     <link rel="stylesheet" href="css/animations.css?v=2.1">
     <link rel="stylesheet" href="css/responsive.css?v=2.1">
     <link rel="stylesheet" href="css/notifications.css?v=2.1">
+    <link rel="stylesheet" href="css/layout.css?v=2.1">
 </head>
 <body>
     <div id="appContainer">
         <!-- Globe Container -->
         <div id="globeContainer"></div>
+
+        <!-- Floating sidebar button (mobile overlay mode) -->
+        <button id="sidebarFab" class="glass-panel" title="Toggle layers panel">
+            <i class="fas fa-layer-group"></i>
+        </button>
 
         <!-- Top Floating Search Bar -->
         <div id="searchBar" class="glass-panel">
@@ -70,6 +95,8 @@
             
             <div class="layer-controls">
                 <h3>Intelligence Layers</h3>
+                <details class="layer-group" open>
+                    <summary>Core Intelligence</summary>
                 <div class="layer-item" data-layer="disasters">
                     <label class="switch">
                         <input type="checkbox" checked id="toggleDisasters">
@@ -98,6 +125,16 @@
                     </label>
                     <span><i class="fas fa-history"></i> Major Events</span>
                 </div>
+                <div class="layer-item" data-layer="borders">
+                    <label class="switch">
+                        <input type="checkbox" id="toggleBorders">
+                        <span class="slider round"></span>
+                    </label>
+                    <span><i class="fas fa-globe-americas"></i> Balance of Power</span>
+                </div>
+                </details>
+                <details class="layer-group">
+                    <summary>Live &amp; Sky</summary>
                 <div class="layer-item" data-layer="aircraft">
                     <label class="switch">
                         <input type="checkbox" id="toggleAircraft">
@@ -119,13 +156,6 @@
                     </label>
                     <span><i class="fas fa-cloud"></i> Weather Overlay</span>
                 </div>
-                <div class="layer-item" data-layer="borders">
-                    <label class="switch">
-                        <input type="checkbox" id="toggleBorders">
-                        <span class="slider round"></span>
-                    </label>
-                    <span><i class="fas fa-globe-americas"></i> Balance of Power</span>
-                </div>
                 <div class="layer-item" data-layer="live">
                     <label class="switch">
                         <input type="checkbox" id="toggleLive">
@@ -140,6 +170,9 @@
                     </label>
                     <span><i class="fas fa-snowflake"></i> GIBS Satellite</span>
                 </div>
+                </details>
+                <details class="layer-group">
+                    <summary>Visual Effects</summary>
                 <div class="layer-item" data-layer="heatmap">
                     <label class="switch">
                         <input type="checkbox" id="toggleHeatmap">
@@ -168,22 +201,26 @@
                     </label>
                     <span><i class="fas fa-street-view"></i> Street View (Ion)</span>
                 </div>
+                </details>
+                <details class="layer-group" open>
+                    <summary>OSIRIS Intel</summary>
                 <div class="layer-item" data-layer="osiris">
                     <label class="switch">
                         <input type="checkbox" id="toggleOsiris">
                         <span class="slider round"></span>
                     </label>
-                    <span title="Merged: CCTV • Maritime+Ships • Chokepoints • Conflicts • Flights • Satellites (native /api/osiris/* + proxy to :4000)"><i class="fas fa-eye"></i> OSIRIS Intel <small style="opacity:0.6;font-size:10px;">MERGED</small></span>
+                    <span title="Merged: CCTV • Maritime+Ships • Chokepoints • Conflicts • Flights • Satellites (native /api/osiris/* + proxy to :4000)"><i class="fas fa-eye"></i> OSIRIS Intel <small class="merged-tag">MERGED</small></span>
                 </div>
-                <div class="layer-item" style="padding-left:28px;opacity:0.7;font-size:11px;flex-direction:column;align-items:flex-start;gap:4px;border-left:2px solid #a78bfa;margin-left:10px;">
-                    <span style="color:#a78bfa"><i class="fas fa-video"></i> CCTV</span>
-                    <span style="color:#38bdf8"><i class="fas fa-anchor"></i> Ports & Ships</span>
-                    <span style="color:#f59e0b"><i class="fas fa-exclamation-triangle"></i> Chokepoints</span>
-                    <span style="color:#ef4444"><i class="fas fa-crosshairs"></i> Conflicts</span>
-                    <span style="color:#22c55e"><i class="fas fa-plane"></i> Flights</span>
-                    <span style="color:#f97316"><i class="fas fa-satellite"></i> Satellites</span>
-                    <span style="font-size:10px;opacity:0.6">vendored: osiris/api + lib • <a href="osiris-README.md" target="_blank" style="color:#a78bfa">docs</a> • <a href="https://github.com/simplifaisoul/osiris" target="_blank" style="color:#a78bfa">upstream</a></span>
+                <div class="layer-item osiris-sub">
+                    <span class="osiris-cctv"><i class="fas fa-video"></i> CCTV</span>
+                    <span class="osiris-ships"><i class="fas fa-anchor"></i> Ports & Ships</span>
+                    <span class="osiris-choke"><i class="fas fa-exclamation-triangle"></i> Chokepoints</span>
+                    <span class="osiris-conflict"><i class="fas fa-crosshairs"></i> Conflicts</span>
+                    <span class="osiris-flights"><i class="fas fa-plane"></i> Flights</span>
+                    <span class="osiris-sats"><i class="fas fa-satellite"></i> Satellites</span>
+                    <span class="osiris-meta">vendored: osiris/api + lib • <a href="osiris-README.md" target="_blank">docs</a> • <a href="https://github.com/simplifaisoul/osiris" target="_blank">upstream</a></span>
                 </div>
+                </details>
             </div>
             
             <div class="status-indicators">
@@ -243,6 +280,8 @@
             </div>
         </div>
 
+        <!-- Right dock: legend + action rail (drawer overlays on open) -->
+        <div id="rightDock">
         <!-- Floating Legend (clean redesigned) -->
         <div id="legend" class="glass-panel">
             <div class="legend-header">
@@ -270,7 +309,23 @@
             </div>
             <a href="osiris-embed/" target="_blank" class="legend-osiris-link">🛰 Open OSIRIS Intelligence →</a>
         </div>
-        <a href="osiris-embed/" target="_blank" style="display:inline-block;margin-top:8px;padding:6px 12px;background:#a78bfa;color:#fff;border-radius:4px;text-decoration:none;font-size:12px;font-weight:600;">Open OSIRIS Intelligence →</a>
+        <!-- Action rail: reset view / random event / live feed -->
+        <nav id="actionRail" aria-label="Map actions">
+            <button id="homeBtn" class="home-btn glass-panel" title="Reset view to default">
+                <i class="fas fa-home"></i>
+            </button>
+            <button id="randomBtn" class="random-btn glass-panel" title="Jump to random event">
+                <i class="fas fa-random"></i>
+            </button>
+            <div id="eventFeed">
+                <button id="feedToggle"><i class="fas fa-bell"></i><span id="feedBadge" class="feed-badge"></span></button>
+                <div class="feed-panel" id="feedPanel">
+                    <div class="feed-header"><h3>Live Event Feed <span id="feedCount" class="feed-count"></span></h3></div>
+                    <div class="feed-body" id="eventFeedList"></div>
+                </div>
+            </div>
+        </nav>
+        </div><!-- /rightDock -->
         <script>
         (function() {
             var btn = document.getElementById('legendMinBtn');
@@ -305,27 +360,8 @@
 
     </div>
 
-    <!-- Home / Reset View Button -->
-    <button id="homeBtn" class="home-btn glass-panel" title="Reset view to default">
-        <i class="fas fa-home"></i>
-    </button>
-
-    <!-- Random Event Button -->
-    <button id="randomBtn" class="random-btn glass-panel" title="Jump to random event">
-        <i class="fas fa-random"></i>
-    </button>
-
     <!-- Toast Notifications -->
     <div id="toastContainer"></div>
-
-    <!-- Event Feed Panel -->
-    <div id="eventFeed">
-        <button id="feedToggle"><i class="fas fa-bell"></i><span id="feedBadge" class="feed-badge"></span></button>
-        <div class="feed-panel" id="feedPanel">
-            <div class="feed-header"><h3>Live Event Feed <span id="feedCount" class="feed-count"></span></h3></div>
-            <div class="feed-body" id="eventFeedList"></div>
-        </div>
-    </div>
 
     <!-- JS Configuration -->
     <script src="js/config.js?v=2.1"></script>
