@@ -1,9 +1,21 @@
 // NOTE: browser keys are injected server-side from environment variables
 // (see server.js config handler). Never commit real keys here.
 const CONFIG = {
-    CESIUM_TOKEN: '__CESIUM_TOKEN__',
     FIRMS_MAP_KEY: (typeof process !== 'undefined' && process.env && process.env.FIRMS_MAP_KEY) || '',
     NASA_API_KEY: '__NASA_API_KEY__',
+
+    // MapLibre GL basemap (OSIRIS engine + style). CARTO dark-matter is the
+    // OSIRIS basemap; ESRI World Imagery is the keyless aerial overlay used
+    // by the Street View toggle. GIBS is the NASA overlay (toggleGIBS).
+    MAP: {
+        STYLE_URL: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+        PROJECTION: 'globe',
+        MIN_ZOOM: 1.2,
+        MAX_ZOOM: 18,
+        MAX_PITCH: 85,
+        AERIAL_TILES: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        AERIAL_ATTR: 'Esri World Imagery'
+    },
 
     GLOBE_SETTINGS: {
         baseColor: '#1a202c',
@@ -13,14 +25,14 @@ const CONFIG = {
     },
 
     CAMERA: {
-        incidentZoom: 50000
+        incidentZoom: 8
     },
 
     CAMERA_DEFAULTS: {
         destination: {
             lat: 20.0,
             lng: 0.0,
-            height: 20000000.0
+            zoom: 2.0
         },
         duration: 3
     },
@@ -71,10 +83,6 @@ const CONFIG = {
 
 if (typeof window !== 'undefined') {
     const params = new URLSearchParams(window.location.search);
-    if (params.get('cesium_token')) CONFIG.CESIUM_TOKEN = params.get('cesium_token');
     if (params.get('firms_key')) CONFIG.FIRMS_MAP_KEY = params.get('firms_key');
-}
-
-if (typeof Cesium !== 'undefined' && CONFIG.CESIUM_TOKEN) {
-    Cesium.Ion.defaultAccessToken = CONFIG.CESIUM_TOKEN;
+    if (params.get('map_style')) CONFIG.MAP.STYLE_URL = params.get('map_style');
 }

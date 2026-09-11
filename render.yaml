@@ -3,7 +3,7 @@ services:
     name: global-earth
     publishPath: .
     # No build step required (fully static; vendor/ is gitignored on HF but
-    # committed for static hosts — Cesium falls back to pinned CDN).
+    # committed for static hosts — MapLibre falls back to pinned CDN).
     headers:
       - path: /sw.js
         name: Cache-Control

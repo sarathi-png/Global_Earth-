@@ -1,12 +1,8 @@
+// TerrainManager — no-op under MapLibre globe projection (3D curvature is
+// native; no terrain provider needed). Kept as a stub for boot compatibility.
 const TerrainManager = {
     init() {
-        // Terrain is handled by Cesium.createWorldTerrain in globe.js for simplicity
-        // This module can be used for custom heightmaps or depth testing toggle
-        console.log("Terrain Manager Loaded");
+        console.log('Terrain Manager Loaded (MapLibre globe — native 3D)');
     },
-
-    toggleTerrain(show) {
-        if (!GlobeManager.viewer) return;
-        // Logic to swap terrain providers if needed
-    }
+    toggleTerrain() {}
 };

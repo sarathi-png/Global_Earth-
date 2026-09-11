@@ -1,4 +1,4 @@
-const CACHE_NAME = 'geo-intel-v3-static';
+const CACHE_NAME = 'geo-intel-v4-maplibre';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -13,9 +13,8 @@ const STATIC_ASSETS = [
   '/css/notifications.css',
   '/css/layout.css',
   '/css/fonts.css',
-  '/vendor/cesium/Cesium.js',
-  '/vendor/cesium/Widgets/widgets.css',
-  '/assets/textures/earth-texture.jpg',
+  '/vendor/maplibre/maplibre-gl.js',
+  '/vendor/maplibre/maplibre-gl.css',
   '/js/config.js',
   '/js/app.js',
   '/js/liveApi.js',

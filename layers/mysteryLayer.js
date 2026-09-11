@@ -1,6 +1,9 @@
 const MysteryLayer = {
     entities: [],
+    entitiesById: {},
     visible: false,
+    _key: 'mysteries',
+    _initialized: false,
 
     async init() {
         if (!this.visible) return;
@@ -11,19 +14,28 @@ const MysteryLayer = {
             this.renderMarkers(data);
             console.log(`Mysteries Layer Initialized: ${data.length} markers`);
         } catch (error) {
-            console.error("Error loading mysteries data:", error);
+            console.error('Error loading mysteries data:', error);
         }
     },
 
     renderMarkers(data) {
-        if (!GlobeManager.viewer) return;
+        if (!GlobeManager.map) return;
         const color = CONFIG.LAYERS.mysteries ? CONFIG.LAYERS.mysteries.color : '#bf5af2';
 
         data.forEach(item => {
-            const entity = MarkerFactory.createPoint(item, color);
+            const entity = MarkerFactory.createPoint(item, color, this._key);
             entity.show = this.visible;
             this.entities.push(entity);
         });
+        GlobeManager.syncLayer(this, this._key);
+        GlobeManager.setGroupVisible(this._key, this.visible);
+        if (typeof updateGlobalStats === 'function') updateGlobalStats();
+    },
+
+    clearEntities() {
+        this.entities = [];
+        this.entitiesById = {};
+        GlobeManager.syncLayer(this, this._key);
     },
 
     toggleVisibility(show) {
@@ -31,12 +43,13 @@ const MysteryLayer = {
         if (show && this.entities.length === 0 && !this._initialized) {
             this._initialized = true;
             this.init();
+            return;
         }
-        this.entities.forEach(entity => {
-            entity.show = show;
-        });
+        this.entities.forEach(entity => { entity.show = show; });
+        GlobeManager.syncLayer(this, this._key);
+        GlobeManager.setGroupVisible(this._key, show);
+        if (typeof updateGlobalStats === 'function') updateGlobalStats();
     }
 };
 
 window.MysteryLayer = MysteryLayer;
-

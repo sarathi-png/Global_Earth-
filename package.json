@@ -6,8 +6,8 @@
     "start": "node server.js",
     "dev": "node server.js 8080",
     "deploy": "node scripts/deploy.js",
-    "build": "node scripts/vendor-cesium.js",
-    "vendor": "node scripts/vendor-cesium.js --force",
+    "build": "node scripts/vendor-maplibre.js",
+    "vendor": "node scripts/vendor-maplibre.js --force",
     "archive": "node scripts/build-archive.mjs",
     "serve": "node server.js 8080"
   },

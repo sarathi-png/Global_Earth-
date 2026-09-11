@@ -18,8 +18,6 @@
         'searchBar',
         'sidebar',
         'rightDrawer',
-        'timeline',
-        'yearSlider',
       ];
       var missing = [];
       elements.forEach(function(id){
@@ -31,11 +29,11 @@
         log('All key DOM elements present.');
       }
 
-      // Cesium presence check
-      if (window.Cesium) {
-        log('Cesium is loaded. Version:', (typeof Cesium.VERSION !== 'undefined') ? Cesium.VERSION : 'unknown');
+      // MapLibre presence check
+      if (window.maplibregl) {
+        log('MapLibre is loaded. Source:', window.MAPLIBRE_SOURCE || 'unknown');
       } else {
-        log('Cesium is not loaded yet. Globe rendering may fail.');
+        log('MapLibre is not loaded yet. Globe rendering may fail.');
       }
     } catch (e) {
       console.error('[Diagnostics] Error during readiness checks:', e);

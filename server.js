@@ -1,7 +1,7 @@
 // Global Earth — dev-only static file server (production is fully static).
 // No API routes, no proxies, no secrets at runtime. Optional .env values
-// (CESIUM_TOKEN / NASA_API_KEY) are injected into js/config.js for local dev
-// convenience only; static hosts use ?cesium_token= / ?firms_key= instead.
+// (NASA_API_KEY) are injected into js/config.js for local dev convenience
+// only; static hosts use ?firms_key= / ?mapillary_key= instead.
 // Usage: node server.js [port]   (default 8080)
 const http = require('http');
 const fs = require('fs');
@@ -60,7 +60,6 @@ const server = http.createServer((req, res) => {
         try {
             let cfg = fs.readFileSync(path.join(ROOT, 'js', 'config.js'), 'utf8');
             const esc = (s) => String(s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-            cfg = cfg.split('__CESIUM_TOKEN__').join(esc(process.env.CESIUM_TOKEN || ''));
             cfg = cfg.split('__NASA_API_KEY__').join(esc(process.env.NASA_API_KEY || 'DEMO_KEY'));
             res.writeHead(200, { 'Content-Type': 'application/javascript', 'Cache-Control': 'no-cache', 'Access-Control-Allow-Origin': '*' });
             res.end(cfg);

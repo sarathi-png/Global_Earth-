@@ -1,50 +1,38 @@
+// CameraManager — MapLibre flyTo wrappers (OSIRIS: map.flyTo center/zoom).
 const CameraManager = {
-    _cancelFlight() {
+    flyTo(lat, lng, height) {
+        if (!GlobeManager.map) return;
         try {
-            if (GlobeManager.viewer && GlobeManager.viewer.camera) {
-                GlobeManager.viewer.camera.cancelFlight();
-            }
+            if (GlobeManager.map.stop) GlobeManager.map.stop();
+            const zoom = (typeof height === 'number' && height > 30)
+                ? GlobeManager.heightToZoom(height, lat) // legacy metre call sites
+                : 6;
+            GlobeManager.map.flyTo({ center: [lng, lat], zoom: zoom, duration: 1400 });
         } catch (_) {}
     },
 
-    flyTo(lat, lng, height = 500000) {
-        if (!GlobeManager.viewer) return;
-        this._cancelFlight();
-
-        GlobeManager.viewer.camera.flyTo({
-            destination: Cesium.Cartesian3.fromDegrees(lng, lat, height),
-            duration: 1.4,
-            easingFunction: Cesium.EasingFunction.QUADRATIC_IN_OUT
-        });
+    flyToZoom(lat, lng, zoom) {
+        if (!GlobeManager.map) return;
+        try {
+            if (GlobeManager.map.stop) GlobeManager.map.stop();
+            GlobeManager.map.flyTo({ center: [lng, lat], zoom: zoom, duration: 1400 });
+        } catch (_) {}
     },
 
     flyToIncident(lat, lng) {
-        if (!GlobeManager.viewer) return;
-        this._cancelFlight();
-        const height = (CONFIG.CAMERA && CONFIG.CAMERA.incidentZoom) || 120000;
-
-        GlobeManager.viewer.camera.flyTo({
-            destination: Cesium.Cartesian3.fromDegrees(lng, lat, height),
-            orientation: {
-                heading: 0,
-                pitch: Cesium.Math.toRadians(-35),
-                roll: 0
-            },
-            duration: 1.4,
-            easingFunction: Cesium.EasingFunction.CUBIC_IN_OUT
-        });
+        const zoom = (CONFIG.CAMERA && CONFIG.CAMERA.incidentZoom) || 8;
+        this.flyToZoom(lat, lng, zoom);
     },
 
     home() {
-        this.flyTo(
-            CONFIG.CAMERA_DEFAULTS.destination.lat,
-            CONFIG.CAMERA_DEFAULTS.destination.lng,
-            CONFIG.CAMERA_DEFAULTS.destination.height
-        );
+        if (!GlobeManager.map) return;
+        const d = (CONFIG.CAMERA_DEFAULTS && CONFIG.CAMERA_DEFAULTS.destination) || { lat: 20, lng: 0, zoom: 2 };
+        this.flyToZoom(d.lat, d.lng, d.zoom || 2);
     },
 
     lookAtEntity(entity) {
-        if (!GlobeManager.viewer || !entity) return;
-        GlobeManager.viewer.zoomTo(entity);
+        if (!GlobeManager.map || !entity || !entity.properties) return;
+        const p = entity.properties;
+        if (typeof p.lat === 'number' && typeof p.lng === 'number') this.flyToIncident(p.lat, p.lng);
     }
 };

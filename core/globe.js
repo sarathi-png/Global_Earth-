@@ -1,97 +1,501 @@
+// GlobeManager — MapLibre GL engine (OSIRIS design).
+// CARTO dark-matter basemap, globe projection, glow/interpolate point layers,
+// native clustering. Replaces the CesiumJS viewer; the public surface
+// (GlobeManager.map, syncLayer, setGroupVisible, flyTo helpers) is what all
+// layer modules talk to.
 const GlobeManager = {
-    viewer: null,
+    map: null,
+    ready: null,
+    _resolveReady: null,
+    _loaded: false,
+    _pending: [],
+    _pickables: {},      // dot/symbol layerId -> layer object (must expose entitiesById)
+    _pickableIds: [],
+    _clusterState: {},   // key -> bool
+    _imageCache: {},
+    _styleFallbackDone: false,
     _allLayerNames: [
         'DisastersLayer','WarsLayer','MysteryLayer','HistoricalLayer',
         'AircraftLayer','SatelliteLayer','WeatherLayer','LiveLayer',
         'BordersLayer','HeatmapLayer','RippleArcLayer',
         'DayNightLayer','StreetViewLayer'
     ],
+    LAYER_KEYS: {
+        DisastersLayer: 'disasters', WarsLayer: 'wars', MysteryLayer: 'mysteries',
+        HistoricalLayer: 'history', AircraftLayer: 'aircraft', SatelliteLayer: 'sat',
+        WeatherLayer: 'weather', LiveLayer: 'live', BordersLayer: 'borders',
+        HeatmapLayer: 'heatmap', RippleArcLayer: 'ripple', DayNightLayer: 'daynight',
+        StreetViewLayer: 'streetview'
+    },
+
+    FALLBACK_STYLE: {
+        version: 8,
+        name: 'geo-intel-dark-fallback',
+        glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
+        sources: {
+            'osm-dark': {
+                type: 'raster',
+                tiles: ['https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'],
+                tileSize: 256,
+                attribution: '&copy; OpenStreetMap &copy; CARTO',
+                maxzoom: 19
+            }
+        },
+        layers: [
+            { id: 'background', type: 'background', paint: { 'background-color': '#0b0e14' } },
+            { id: 'osm-dark', type: 'raster', source: 'osm-dark', paint: { 'raster-opacity': 0.95 } }
+        ]
+    },
 
     async init(containerId) {
-        // Guard 1: WebGL support (headless / blocked canvas environments)
+        // Guard 1: WebGL support
         try {
             const testCanvas = document.createElement('canvas');
             if (!(window.WebGLRenderingContext &&
-                (testCanvas.getContext('webgl') || testCanvas.getContext('experimental-webgl')))) {
+                (testCanvas.getContext('webgl2') || testCanvas.getContext('webgl') || testCanvas.getContext('experimental-webgl')))) {
                 this.showFatal(containerId, 'WebGL Unavailable',
                     'This browser (or its current settings) does not provide WebGL, which the 3D globe requires.');
                 return null;
             }
-        } catch (_) { /* proceed — Viewer will report */ }
+        } catch (_) { /* proceed — map will report */ }
 
-        // Guard 2: Cesium failed to load (CDN + vendor both blocked)
-        if (typeof Cesium === 'undefined') {
+        // Guard 2: MapLibre failed to load (CDN + vendor both blocked)
+        if (typeof maplibregl === 'undefined') {
             this.showFatal(containerId, 'Engine Failed to Load',
-                'The CesiumJS library could not be loaded from the local bundle or any CDN fallback. Check your connection or ad/script blocker, then retry.');
+                'The MapLibre GL library could not be loaded from the local bundle or any CDN fallback. Check your connection or ad/script blocker, then retry.');
             return null;
         }
+
+        this.ready = new Promise((resolve) => { this._resolveReady = resolve; });
+
         try {
-            const viewerOptions = {
-                animation: false,
-                baseLayerPicker: false,
-                fullscreenButton: false,
-                geocoder: false,
-                homeButton: false, // custom #homeBtn is used instead
-                infoBox: false,
-                sceneModePicker: false,
-                selectionIndicator: false,
-                timeline: false,
-                navigationHelpButton: true,
-                navigationInstructionsInitiallyVisible: false,
-                scene3DOnly: true,
-                shouldAnimate: true
+            const container = document.getElementById(containerId);
+            const styleUrl = (typeof CONFIG !== 'undefined' && CONFIG.MAP && CONFIG.MAP.STYLE_URL)
+                || 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
+            const home = (typeof CONFIG !== 'undefined' && CONFIG.CAMERA_DEFAULTS)
+                ? CONFIG.CAMERA_DEFAULTS.destination : { lat: 20, lng: 0, zoom: 2 };
+
+            const baseOptions = {
+                container: container,
+                style: styleUrl,
+                center: [home.lng || 0, home.lat || 20],
+                zoom: (typeof home.zoom === 'number') ? home.zoom : 2,
+                minZoom: (CONFIG.MAP && CONFIG.MAP.MIN_ZOOM) || 1.2,
+                maxZoom: (CONFIG.MAP && CONFIG.MAP.MAX_ZOOM) || 18,
+                maxPitch: (CONFIG.MAP && CONFIG.MAP.MAX_PITCH) || 85,
+                projection: (CONFIG.MAP && CONFIG.MAP.PROJECTION) || 'globe',
+                attributionControl: { compact: true },
+                doubleClickZoom: false, // custom double-click flies closer to the picked incident
+                dragRotate: true,
+                touchPitch: true,
+                failIfMajorPerformanceCaveat: false
             };
 
-            this.viewer = new Cesium.Viewer(containerId, viewerOptions);
-
-            if (CONFIG.CESIUM_TOKEN && navigator.onLine) {
-                Cesium.CesiumTerrainProvider.fromIonAssetId(1).then(terrain => {
-                    this.viewer.terrainProvider = terrain;
-                }).catch(() => console.warn("Terrain failed, using ellipsoid."));
-            }
-
-            const scene = this.viewer.scene;
-            const globe = scene.globe;
-
-            globe.baseColor = Cesium.Color.fromCssColorString(CONFIG.GLOBE_SETTINGS.baseColor);
-            globe.showGroundAtmosphere = CONFIG.GLOBE_SETTINGS.enableAtmosphere;
-
-            if ('enableLighting' in globe) {
+            // OSIRIS pattern: MapLibre asks for a high-performance context and
+            // throws outright if it cannot get one — walk down to weaker
+            // requests before giving up.
+            const attributeFallbacks = [
+                undefined,
+                { failIfMajorPerformanceCaveat: false }
+            ];
+            let map = null;
+            for (const canvasContextAttributes of attributeFallbacks) {
                 try {
-                    globe.enableLighting = CONFIG.GLOBE_SETTINGS.enableLighting;
+                    map = new maplibregl.Map(
+                        canvasContextAttributes ? { ...baseOptions, canvasContextAttributes } : baseOptions
+                    );
+                    break;
                 } catch (e) {
-                    console.warn("globe.enableLighting not supported in this Cesium version, skipping.");
+                    container.innerHTML = '';
+                    if (canvasContextAttributes === attributeFallbacks[attributeFallbacks.length - 1]) throw e;
+                    console.warn('[Globe] WebGL context rejected, retrying with weaker attributes:', e && e.message);
                 }
             }
+            if (!map) return null;
+            this.map = map;
 
-            scene.skyAtmosphere.show = true;
-            scene.fog.enabled = true;
-            scene.fog.density = 0.0001;
-
-            scene.renderError.addEventListener((scene, error) => {
-                console.warn("Cesium render error caught:", error);
+            map.on('load', () => {
+                this._loaded = true;
+                this._flush();
+                if (this._resolveReady) this._resolveReady(map);
+                console.log('MapLibre globe initialized (source: ' + (window.MAPLIBRE_SOURCE || 'unknown') + ')');
             });
 
-            if (CONFIG.CESIUM_TOKEN && navigator.onLine) {
-                Cesium.IonImageryProvider.fromAssetId(3).then(provider => {
-                    this.viewer.imageryLayers.removeAll();
-                    this.viewer.imageryLayers.addImageryProvider(provider);
-                }).catch(() => {
-                    console.warn("Ion Imagery failed, using local texture.");
-                    this.setupLocalImagery();
-                });
-            } else {
-                console.log("Offline mode: using bundled texture imagery.");
-                this.setupLocalImagery();
-            }
+            // If the CARTO style (or its sprites/glyphs) fails, fall back to
+            // a bundled dark raster style so the globe always renders.
+            map.on('error', (e) => {
+                try {
+                    const msg = (e && e.error && e.error.message) || '';
+                    if (!this._loaded && !this._styleFallbackDone &&
+                        /style|sprit|glyph|network|fetch/i.test(msg)) {
+                        this._styleFallbackDone = true;
+                        console.warn('[Globe] basemap style failed, switching to fallback style:', msg);
+                        map.setStyle(this.FALLBACK_STYLE);
+                    }
+                } catch (_) {}
+            });
+            // Watchdog: style never reported load → force fallback.
+            setTimeout(() => {
+                try {
+                    if (!this._loaded && !this._styleFallbackDone && this.map) {
+                        this._styleFallbackDone = true;
+                        console.warn('[Globe] basemap style timed out, switching to fallback style.');
+                        this.map.setStyle(this.FALLBACK_STYLE);
+                    }
+                } catch (_) {}
+            }, 12000);
 
-            this.initFrustumCulling();
-            console.log("Cesium Globe Initialized");
-            return this.viewer;
+            map.on('styledata', () => { /* style (re)loaded */ });
+            return map;
         } catch (error) {
-            console.error("Error initializing Cesium Globe:", error);
+            console.error('Error initializing MapLibre globe:', error);
             this.showFatal(containerId, 'Engine Initialization Failure',
-                'The 3D engine failed to start. This usually happens due to script blocking, missing WebGL, or an invalid Cesium Ion token.');
+                'The 3D engine failed to start. This usually happens due to script blocking or missing WebGL.');
+            return null;
+        }
+    },
+
+    // ── readiness queue: layer setup calls made before style load ──
+    _whenReady(fn) {
+        if (this._loaded && this.map) { try { fn(); } catch (e) { console.warn('[Globe] op failed:', e.message); } return; }
+        this._pending.push(fn);
+    },
+    _flush() {
+        const ops = this._pending.splice(0);
+        ops.forEach((fn) => { try { fn(); } catch (e) { console.warn('[Globe] queued op failed:', e.message); } });
+    },
+
+    // ── height <-> zoom (keeps old call sites meaningful) ──
+    heightToZoom(height, lat) {
+        const h = Math.max(500, Number(height) || 500000);
+        const la = (Number(lat) || 20) * Math.PI / 180;
+        const z = Math.log2(40075016.686 * Math.cos(la) / h);
+        return Math.min(18, Math.max(1.2, z));
+    },
+    zoomToHeight(zoom, lat) {
+        const z = (typeof zoom === 'number') ? zoom : 2;
+        const la = (Number(lat) || 20) * Math.PI / 180;
+        return 40075016.686 * Math.cos(la) / Math.pow(2, z);
+    },
+    getCenter() {
+        if (!this.map) return { lat: 20, lng: 0, zoom: 2 };
+        try {
+            const c = this.map.getCenter();
+            return { lat: c.lat, lng: c.lng, zoom: this.map.getZoom() };
+        } catch (_) { return { lat: 20, lng: 0, zoom: 2 }; }
+    },
+
+    // ── image registry (canvas icons, OSIRIS createIcon/createDot pattern) ──
+    addImage(id, canvasOrData, width, height) {
+        this._whenReady(() => {
+            if (!id || this.map.hasImage(id)) return;
+            try {
+                if (canvasOrData instanceof HTMLCanvasElement || canvasOrData instanceof HTMLImageElement || canvasOrData instanceof ImageBitmap) {
+                    this.map.addImage(id, canvasOrData);
+                } else if (canvasOrData && canvasOrData.data) {
+                    this.map.addImage(id, canvasOrData, { pixelRatio: 2 });
+                } else if (width && height && canvasOrData instanceof Uint8Array) {
+                    this.map.addImage(id, { width, height, data: canvasOrData });
+                }
+            } catch (e) { console.warn('[Globe] addImage failed:', id, e.message); }
+        });
+    },
+    makeDotImage(color, size) {
+        size = size || 16;
+        const c = document.createElement('canvas');
+        c.width = size; c.height = size;
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(size / 2, size / 2, size / 2 - 1, 0, Math.PI * 2);
+        ctx.fill();
+        return c;
+    },
+
+    // ── clustered point layers (OSIRIS glow + dots + labels + clusters) ──
+    ensurePointLayers(key, opts) {
+        opts = opts || {};
+        const useCluster = opts.cluster !== false;
+        this._whenReady(() => {
+            const srcId = 'src-' + key;
+            if (!this.map.getSource(srcId)) {
+                this.map.addSource(srcId, {
+                    type: 'geojson',
+                    data: { type: 'FeatureCollection', features: [] },
+                    cluster: useCluster,
+                    clusterMaxZoom: 9,
+                    clusterRadius: 50
+                });
+                this._clusterState[key] = useCluster;
+                const noCluster = useCluster ? ['!', ['has', 'point_count']] : null;
+
+                // glow halo
+                this.map.addLayer({
+                    id: key + '-glow', type: 'circle', source: srcId,
+                    filter: noCluster,
+                    paint: {
+                        'circle-radius': ['interpolate', ['linear'], ['zoom'], 1, 6, 5, 12, 10, 20],
+                        'circle-color': ['get', 'color'],
+                        'circle-opacity': 0.12, 'circle-blur': 1
+                    }
+                });
+                // core dot
+                this.map.addLayer({
+                    id: key + '-dots', type: 'circle', source: srcId,
+                    filter: noCluster,
+                    paint: {
+                        'circle-radius': ['interpolate', ['linear'], ['zoom'], 1, 4, 5, 6, 10, 10],
+                        'circle-color': ['get', 'color'],
+                        'circle-opacity': 0.85,
+                        'circle-stroke-width': 1.5,
+                        'circle-stroke-color': ['get', 'color'],
+                        'circle-stroke-opacity': 0.4
+                    }
+                });
+                // label
+                this.map.addLayer({
+                    id: key + '-label', type: 'symbol', source: srcId,
+                    minzoom: opts.labelMinzoom || 5,
+                    filter: noCluster,
+                    layout: {
+                        'text-field': ['get', 'title'],
+                        'text-size': 9,
+                        'text-font': ['Noto Sans Regular', 'Open Sans Regular'],
+                        'text-offset': [0, 1.8],
+                        'text-max-width': 12,
+                        'text-allow-overlap': false
+                    },
+                    paint: {
+                        'text-color': ['get', 'color'],
+                        'text-halo-color': '#000000',
+                        'text-halo-width': 1.5,
+                        'text-opacity': 0.85
+                    }
+                });
+                // clusters (only for clustered sources)
+                if (useCluster) {
+                    this.map.addLayer({
+                        id: key + '-cluster', type: 'circle', source: srcId,
+                        filter: ['has', 'point_count'],
+                        paint: {
+                            'circle-radius': ['step', ['get', 'point_count'], 16, 100, 22, 750, 30],
+                            'circle-color': '#223448',
+                            'circle-opacity': 0.9,
+                            'circle-stroke-width': 2,
+                            'circle-stroke-color': '#9fb3c8',
+                            'circle-stroke-opacity': 0.8
+                        }
+                    });
+                    this.map.addLayer({
+                        id: key + '-count', type: 'symbol', source: srcId,
+                        filter: ['has', 'point_count'],
+                        layout: {
+                            'text-field': ['get', 'point_count_abbreviated'],
+                            'text-size': 12,
+                            'text-font': ['Noto Sans Bold', 'Open Sans Bold']
+                        },
+                        paint: { 'text-color': '#ffffff' }
+                    });
+                }
+            }
+            // (re)register pickables
+            (opts.pickExtra || []).concat([key + '-dots']).forEach((lid) => {
+                if (this._pickableIds.indexOf(lid) === -1) this._pickableIds.push(lid);
+            });
+        });
+    },
+
+    setPointData(key, features) {
+        this._whenReady(() => {
+            const src = this.map.getSource('src-' + key);
+            if (src && src.setData) src.setData({ type: 'FeatureCollection', features: features || [] });
+        });
+    },
+
+    pointLayerIds(key) {
+        const ids = [key + '-glow', key + '-dots', key + '-label'];
+        if (this._clusterState[key] !== false) ids.push(key + '-cluster', key + '-count');
+        return ids;
+    },
+
+    // Manual pickable registration for custom (non-point-helper) layers.
+    registerPickable(layerId, layerObj) {
+        this._whenReady(() => {
+            this._pickables[layerId] = layerObj;
+            if (this._pickableIds.indexOf(layerId) === -1) this._pickableIds.push(layerId);
+        });
+    },
+
+    // Push prebuilt features to a custom source + rebuild the entity index.
+    setCustomData(srcId, layerObj, features) {
+        if (layerObj) {
+            layerObj.entitiesById = layerObj.entitiesById || {};
+            const idx = {};
+            (features || []).forEach((f) => {
+                const eid = f && f.properties && f.properties._eid;
+                if (eid && layerObj.entities) {
+                    const ent = layerObj.entities.find((e) => e.id === eid);
+                    if (ent) idx[eid] = ent;
+                }
+            });
+            layerObj.entitiesById = idx;
+        }
+        this.setGeoData(srcId, { type: 'FeatureCollection', features: features || [] });
+    },
+
+    setGroupVisible(key, show) {
+        this._whenReady(() => {
+            const vis = show ? 'visible' : 'none';
+            this.pointLayerIds(key).forEach((lid) => {
+                if (!this.map.getLayer(lid)) return;
+                if ((lid === key + '-cluster' || lid === key + '-count') && !this._clusterState[key]) return;
+                try { this.map.setLayoutProperty(lid, 'visibility', vis); } catch (_) {}
+            });
+        });
+    },
+
+    setClustering(key, on) {
+        this._clusterState[key] = !!on;
+        this._whenReady(() => {
+            const vis = (lid, v) => { if (this.map.getLayer(lid)) { try { this.map.setLayoutProperty(lid, 'visibility', v); } catch (_) {} } };
+            // determine current group visibility from dots layer
+            let groupOn = true;
+            try {
+                const cur = this.map.getLayoutProperty(key + '-dots', 'visibility');
+                groupOn = cur !== 'none';
+            } catch (_) {}
+            vis(key + '-cluster', (on && groupOn) ? 'visible' : 'none');
+            vis(key + '-count', (on && groupOn) ? 'visible' : 'none');
+            try {
+                this.map.setFilter(key + '-dots', on ? ['!', ['has', 'point_count']] : null);
+                this.map.setFilter(key + '-label', on ? ['!', ['has', 'point_count']] : null);
+            } catch (_) {}
+        });
+    },
+
+    // ── entity <-> feature sync ──
+    // entities: [{id, properties:{...plain}, show}] → features; rebuilds the
+    // layer's entity index for click resolution.
+    syncLayer(layerObj, key) {
+        if (!layerObj) return;
+        layerObj.entitiesById = layerObj.entitiesById || {};
+        const idx = {};
+        const features = [];
+        (layerObj.entities || []).forEach((e) => {
+            if (!e || e.show === false) return;
+            const p = e.properties || {};
+            if (typeof p.lat !== 'number' || typeof p.lng !== 'number') return;
+            if (!isFinite(p.lat) || !isFinite(p.lng)) return;
+            idx[e.id] = e;
+            features.push({
+                type: 'Feature',
+                geometry: { type: 'Point', coordinates: [p.lng, p.lat] },
+                properties: Object.assign({}, p, { _eid: e.id, _key: key })
+            });
+        });
+        layerObj.entitiesById = idx;
+        this.ensurePointLayers(key, layerObj._pointOpts);
+        this.setPointData(key, features);
+        if (layerObj._pickRegistered !== key) {
+            layerObj._pickRegistered = key;
+            this._whenReady(() => {
+                (layerObj._pickExtra || []).concat([key + '-dots']).forEach((lid) => {
+                    this._pickables[lid] = layerObj;
+                    if (this._pickableIds.indexOf(lid) === -1) this._pickableIds.push(lid);
+                });
+            });
+        }
+    },
+
+    queryAt(point) {
+        if (!this.map || !this._pickableIds.length) return null;
+        let feats = [];
+        try {
+            feats = this.map.queryRenderedFeatures(point, { layers: this._pickableIds.filter((id) => !!this.map.getLayer(id)) });
+        } catch (_) { return null; }
+        if (!feats || !feats.length) return null;
+        const f = feats[0];
+        const props = f.properties || {};
+        if (props.cluster) {
+            return { cluster: true, clusterId: props.cluster_id, srcId: f.source, lngLat: (f.geometry && f.geometry.coordinates) || null };
+        }
+        const owner = this._pickables[f.layer && f.layer.id];
+        const ent = owner && owner.entitiesById && owner.entitiesById[props._eid];
+        if (ent) return { entity: ent, key: props._key };
+        // Fallback: synthesize a minimal entity from feature properties.
+        return {
+            entity: {
+                id: props._eid || (props.title + '-' + props.lat + '-' + props.lng),
+                properties: props, show: true
+            },
+            key: props._key
+        };
+    },
+
+    expandCluster(srcId, clusterId, lngLat) {
+        try {
+            const src = this.map && this.map.getSource(srcId);
+            if (!src || !src.getClusterExpansionZoom) return;
+            src.getClusterExpansionZoom(clusterId, (err, zoom) => {
+                if (err || !this.map) return;
+                this.map.easeTo({ center: lngLat || this.map.getCenter(), zoom: Math.min(zoom, 12), duration: 600 });
+            });
+        } catch (_) {}
+    },
+
+    // ── generic source/layer helpers ──
+    ensureGeoSource(srcId, data, opts) {
+        this._whenReady(() => {
+            if (!this.map.getSource(srcId)) {
+                this.map.addSource(srcId, Object.assign({ type: 'geojson', data: data || { type: 'FeatureCollection', features: [] } }, opts || {}));
+            }
+        });
+    },
+    setGeoData(srcId, data) {
+        this._whenReady(() => {
+            const src = this.map.getSource(srcId);
+            if (src && src.setData) src.setData(data || { type: 'FeatureCollection', features: [] });
+        });
+    },
+    addLayerOnce(def) {
+        this._whenReady(() => {
+            if (!this.map.getLayer(def.id)) { try { this.map.addLayer(def); } catch (e) { console.warn('[Globe] addLayer failed:', def.id, e.message); } }
+        });
+    },
+    setLayerVisible(layerId, show) {
+        this._whenReady(() => {
+            if (!this.map.getLayer(layerId)) return;
+            try { this.map.setLayoutProperty(layerId, 'visibility', show ? 'visible' : 'none'); } catch (_) {}
+        });
+    },
+    addRasterLayer(id, tiles, attribution, opacity) {
+        this._whenReady(() => {
+            const srcId = 'src-' + id;
+            if (!this.map.getSource(srcId)) {
+                this.map.addSource(srcId, { type: 'raster', tiles: [tiles], tileSize: 256, attribution: attribution || '', maxzoom: 19 });
+            }
+            if (!this.map.getLayer(id)) {
+                this.map.addLayer({ id, type: 'raster', source: srcId, paint: { 'raster-opacity': (typeof opacity === 'number') ? opacity : 0.9 } });
+            }
+        });
+    },
+    removeRasterLayer(id) {
+        this._whenReady(() => {
+            try { if (this.map.getLayer(id)) this.map.removeLayer(id); } catch (_) {}
+            try { if (this.map.getSource('src-' + id)) this.map.removeSource('src-' + id); } catch (_) {}
+        });
+    },
+
+    async addGIBSLayer(type) {
+        if (!this.map) return null;
+        try {
+            const d = new Date(Date.now() - 86400000);
+            const datestr = d.toISOString().slice(0, 10);
+            const tiles = 'https://gibs.earthdata.nasa.gov/wmts/epsg4326/best/' + type + '/default/' + datestr + '/250m/{z}/{y}/{x}.png';
+            this.addRasterLayer('gibs-overlay', tiles, 'NASA GIBS', 0.5);
+            return 'gibs-overlay';
+        } catch (e) {
+            console.warn('GIBS layer failed:', e.message);
             return null;
         }
     },
@@ -99,196 +503,20 @@ const GlobeManager = {
     showFatal(containerId, title, detail) {
         const container = document.getElementById(containerId);
         if (!container) return;
-        container.innerHTML = `
-            <div class="glass-panel globe-fatal">
-                <i class="fas fa-exclamation-triangle globe-fatal-icon"></i>
-                <h3>${title}</h3>
-                <p class="globe-fatal-detail">${detail}</p>
-                <div class="globe-fatal-actions">
-                    <button class="fatal-retry-btn" onclick="location.reload()">
-                        <i class="fas fa-rotate-right"></i> Retry
-                    </button>
-                    <span class="globe-fatal-hint">Tip: set a valid CESIUM_TOKEN env var for Ion imagery, or run fully offline with the bundled texture.</span>
-                </div>
-            </div>
-        `;
+        container.innerHTML =
+            '<div class="glass-panel globe-fatal">' +
+            '<i class="fas fa-exclamation-triangle globe-fatal-icon"></i>' +
+            '<h3>' + title + '</h3>' +
+            '<p class="globe-fatal-detail">' + detail + '</p>' +
+            '<div class="globe-fatal-actions">' +
+            '<button class="fatal-retry-btn" onclick="location.reload()">' +
+            '<i class="fas fa-rotate-right"></i> Retry</button></div></div>';
     },
 
-    async addGIBSLayer(type) {
-        if (!this.viewer) return;
-        try {
-            const gibsUrl = 'https://gibs.earthdata.nasa.gov/wmts/epsg4326/best/' + type + '/default/2024-01-01/250m/{z}/{y}/{x}.png';
-            const provider = await Cesium.UrlTemplateImageryProvider.fromUrl(gibsUrl, {
-                maximumLevel: 8,
-                credit: 'NASA GIBS'
-            });
-            const layer = this.viewer.imageryLayers.addImageryProvider(provider);
-            layer.alpha = 0.5;
-            return layer;
-        } catch (e) {
-            console.warn('GIBS layer failed:', e.message);
-            return null;
-        }
-    },
-
-    _cullingReset() {
-        const allLayers = this._allLayerNames.map(n => window[n]);
-        allLayers.forEach(layer => {
-            if (!layer || !layer.entities) return;
-            layer.entities.forEach(entity => {
-                if (!layer.visible) { entity.show = false; return; }
-                entity.show = true;
-            });
-            if (layer.dataSource) layer.dataSource.show = layer.visible;
-        });
-        this._lastCullUpdate = 0;
-    },
-
-    initFrustumCulling() {
-        if (!this.viewer) return;
-
-        const scene = this.viewer.scene;
-        const camera = this.viewer.camera;
-        const canvas = scene.canvas;
-
-        let lastUpdate = 0;
-        let lastCamPos = null;
-        let lastCamDir = null;
-        const UPDATE_INTERVAL = 300;
-        const MAX_IDLE_INTERVAL = 600;
-        const LABEL_MAX_DISTANCE = 8000000;
-        const MIN_DOT_THRESHOLD = 0.0;
-        const occluder = new Cesium.EllipsoidalOccluder(Cesium.Ellipsoid.WGS84, Cesium.Cartesian3.ZERO);
-
-        const scratchTo = new Cesium.Cartesian3();
-        const scratchNorm = new Cesium.Cartesian3();
-        const scratchCamDir = new Cesium.Cartesian3();
-
-        this._cullingUpdate = () => {
-            try {
-                const now = Date.now();
-                const camPos = camera.position;
-                const camDir = camera.direction;
-
-                const cameraMoved = !lastCamPos ||
-                    !Cesium.Cartesian3.equalsEpsilon(camPos, lastCamPos, 500) ||
-                    !Cesium.Cartesian3.equalsEpsilon(camDir, lastCamDir, 1e-6);
-
-                if (!cameraMoved && now - lastUpdate < MAX_IDLE_INTERVAL) return;
-                if (cameraMoved && now - lastUpdate < UPDATE_INTERVAL) return;
-                lastUpdate = now;
-                lastCamPos = Cesium.Cartesian3.clone(camPos);
-                lastCamDir = Cesium.Cartesian3.clone(camDir);
-
-                const camDirNorm = Cesium.Cartesian3.normalize(camDir, scratchCamDir);
-                const W = canvas.clientWidth;
-                const H = canvas.clientHeight;
-                occluder.cameraPosition = camPos;
-
-                const allLayers = this._allLayerNames.map(n => window[n]);
-
-                allLayers.forEach(layer => {
-                    if (!layer || !layer.entities || !layer.visible) return;
-
-                    layer.entities.forEach(entity => {
-                        try {
-                            if (!entity.position || (!entity.point && !entity.billboard)) return;
-
-                            const worldPos = entity.position.getValue(scene.clock.currentTime);
-                            if (!worldPos) return;
-
-                            Cesium.Cartesian3.subtract(worldPos, camPos, scratchTo);
-                            const dist = Cesium.Cartesian3.magnitude(scratchTo);
-                            if (dist < 1) return;
-
-                            Cesium.Cartesian3.divideByScalar(scratchTo, dist, scratchNorm);
-                            const dot = Cesium.Cartesian3.dot(camDirNorm, scratchNorm);
-
-                            if (dot < MIN_DOT_THRESHOLD) {
-                                entity.show = false;
-                                return;
-                            }
-
-                            if (occluder.isPointVisible(worldPos) === false) {
-                                entity.show = false;
-                                return;
-                            }
-
-                            try {
-                                const screenPos = Cesium.SceneTransforms.wgs84ToWindowCoordinates(scene, worldPos);
-                                if (!screenPos ||
-                                    screenPos.x < -150 || screenPos.x > W + 150 ||
-                                    screenPos.y < -150 || screenPos.y > H + 150) {
-                                    entity.show = false;
-                                    return;
-                                }
-                            } catch (e) {
-                                entity.show = false;
-                                return;
-                            }
-
-                            entity.show = true;
-
-                            if (entity.label) {
-                                if (dist > LABEL_MAX_DISTANCE) {
-                                    entity.label.show = false;
-                                } else {
-                                    const fadeStart = LABEL_MAX_DISTANCE * 0.6;
-                                    if (dist > fadeStart) {
-                                        const alpha = 1 - ((dist - fadeStart) / (LABEL_MAX_DISTANCE - fadeStart));
-                                        entity.label.translucency = Math.max(0.1, alpha);
-                                    } else {
-                                        entity.label.translucency = 1.0;
-                                    }
-                                    entity.label.show = true;
-                                }
-                            }
-                        } catch (e) { /* skip bad entity */ }
-                    });
-                });
-            } catch (e) { /* silently ignore */ }
-        };
-
-        scene.preRender.addEventListener(this._cullingUpdate);
-        this._cullingListenerAttached = true;
-    },
-
-    destroyCulling() {
-        if (this.viewer && this.viewer.scene && this.viewer.scene.preRender && this._cullingUpdate && this._cullingListenerAttached) {
-            this.viewer.scene.preRender.removeEventListener(this._cullingUpdate);
-            this._cullingListenerAttached = false;
-        }
-    },
-
-    async setupLocalImagery() {
-        try {
-            this.viewer.imageryLayers.removeAll();
-        } catch (_) { /* viewer may be tearing down */ }
-        try {
-            const provider = await Cesium.SingleTileImageryProvider.fromUrl(
-                'assets/textures/earth-texture.jpg'
-            );
-            this.viewer.imageryLayers.addImageryProvider(provider);
-            console.log("Bundled earth texture imagery active.");
-        } catch (e) {
-            console.warn("Local texture imagery failed; trying OSM.", e);
-            try {
-                await this.setupFallbackImagery();
-            } catch (e2) {
-                console.warn("All imagery fallbacks failed; rendering plain ellipsoid.", e2);
-            }
-        }
-    },
-
-    async setupFallbackImagery() {
-        this.viewer.imageryLayers.removeAll();
-        try {
-            const osmProvider = await Cesium.OpenStreetMapImageryProvider.fromUrl(
-                'https://a.tile.openstreetmap.org/'
-            );
-            this.viewer.imageryLayers.addImageryProvider(osmProvider);
-        } catch (e) {
-            console.warn("OSM fallback imagery also failed.", e);
-        }
-    }
+    // Compat no-ops (Cesium frustum culling is gone — MapLibre culls natively).
+    initFrustumCulling() {},
+    destroyCulling() {},
+    setupLocalImagery() {},
+    setupFallbackImagery() {},
+    _cullingReset() {}
 };

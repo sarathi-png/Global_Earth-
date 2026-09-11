@@ -1,158 +1,170 @@
+// RippleArcLayer — expanding alert rings + glow arcs between severe events.
+// Rings animate via a 20fps timer rewriting radius/alpha feature properties
+// (same mechanism as PulseEngine); arcs are static glow line strings.
 const RippleArcLayer = {
-    rippleEntities: [],
-    arcEntities: [],
     visible: false,
     _initialized: false,
-    _animFrame: null,
+    _setup: false,
+    _timer: null,
+    _t0: 0,
+    _rings: [],
 
     async init() {
         if (this._initialized) return;
         this._initialized = true;
+        this.setup();
         console.log('RippleArcLayer initialized');
     },
 
+    setup() {
+        if (this._setup || typeof GlobeManager === 'undefined') return;
+        this._setup = true;
+        GlobeManager.ensureGeoSource('src-ripple', null);
+        GlobeManager.ensureGeoSource('src-ripple-arcs', null);
+        GlobeManager.addLayerOnce({
+            id: 'ripple-ring', type: 'circle', source: 'src-ripple',
+            paint: {
+                'circle-radius': ['coalesce', ['get', '_rad'], 12],
+                'circle-color': ['coalesce', ['get', 'color'], '#ff9500'],
+                'circle-opacity': 0,
+                'circle-stroke-width': 2,
+                'circle-stroke-color': ['coalesce', ['get', 'color'], '#ff9500'],
+                'circle-stroke-opacity': ['coalesce', ['get', '_a'], 0.4]
+            }
+        });
+        GlobeManager.addLayerOnce({
+            id: 'ripple-arc-glow', type: 'line', source: 'src-ripple-arcs',
+            layout: { 'line-cap': 'round', 'line-join': 'round' },
+            paint: {
+                'line-color': ['coalesce', ['get', 'color'], '#ff9500'],
+                'line-width': 3, 'line-opacity': 0.25, 'line-blur': 2
+            }
+        });
+        GlobeManager.addLayerOnce({
+            id: 'ripple-arc', type: 'line', source: 'src-ripple-arcs',
+            layout: { 'line-cap': 'round', 'line-join': 'round' },
+            paint: {
+                'line-color': ['coalesce', ['get', 'color'], '#ff9500'],
+                'line-width': 1.5, 'line-opacity': 0.6
+            }
+        });
+        this.applyVisibility();
+    },
+
     async generateFromLiveEvents() {
-        if (!GlobeManager.viewer || !this.visible) return;
-        this.clearAll();
-        var events = [];
+        if (!GlobeManager.map || !this.visible) return;
+        this.setup();
+        this.clearAll(true);
+        let events = [];
         if (typeof LiveLayer !== 'undefined' && LiveLayer._lastEvents) {
             events = LiveLayer._lastEvents;
         }
-        if (events.length === 0) return;
+        if (!events.length) return;
 
-        var critical = events.filter(function(e) {
-            return e.severity === 'Critical' || e.severity === 'High';
-        });
+        let critical = events.filter((e) => e.severity === 'Critical' || e.severity === 'High');
         critical = critical.slice(0, 20);
 
-        var self = this;
-        critical.forEach(function(event, idx) {
-            self.addRipple(event, idx);
+        const ringFeatures = [];
+        critical.forEach((event) => {
+            if (!isFinite(event.lat) || !isFinite(event.lng)) return;
+            const color = event.severity === 'Critical' ? '#ff3b30' : '#ff9500';
+            const rings = event.severity === 'Critical' ? 3 : 2;
+            const base = event.severity === 'Critical' ? 14 : 11;
+            for (let r = 0; r < rings; r++) {
+                ringFeatures.push({
+                    type: 'Feature',
+                    geometry: { type: 'Point', coordinates: [Number(event.lng), Number(event.lat)] },
+                    properties: { color, _base: base, _off: r * 1.0, _rad: base, _a: 0.4 }
+                });
+            }
         });
+        this._rings = ringFeatures;
+        GlobeManager.setGeoData('src-ripple', { type: 'FeatureCollection', features: ringFeatures });
 
+        const arcFeatures = [];
         if (critical.length >= 2) {
-            var pairs = [];
-            for (var i = 0; i < Math.min(critical.length, 8); i++) {
-                for (var j = i + 1; j < Math.min(critical.length, 8); j++) {
-                    if (critical[i].category === critical[j].category ||
-                        critical[i].source === critical[j].source) {
+            const pairs = [];
+            const n = Math.min(critical.length, 8);
+            for (let i = 0; i < n && pairs.length < 5; i++) {
+                for (let j = i + 1; j < n && pairs.length < 5; j++) {
+                    if (critical[i].category === critical[j].category || critical[i].source === critical[j].source) {
                         pairs.push([critical[i], critical[j]]);
-                        if (pairs.length >= 5) break;
                     }
                 }
-                if (pairs.length >= 5) break;
             }
-            pairs.forEach(function(pair, idx) {
-                self.addArc(pair[0], pair[1], idx);
+            const palette = ['#ff9500', '#ff3b30', '#00b4ff'];
+            pairs.forEach((pair, idx) => {
+                const line = this.greatArc(pair[0], pair[1]);
+                if (line) arcFeatures.push({
+                    type: 'Feature',
+                    geometry: { type: 'LineString', coordinates: line },
+                    properties: { color: palette[idx % palette.length] }
+                });
             });
         }
+        GlobeManager.setGeoData('src-ripple-arcs', { type: 'FeatureCollection', features: arcFeatures });
+
+        this.applyVisibility();
+        this.startAnim();
     },
 
-    addRipple(event, idx) {
-        if (!GlobeManager.viewer || !event.lat || !event.lng) return;
-        var sevColor = event.severity === 'Critical' ?
-            new Cesium.Color(1, 0.23, 0.19, 0.6) :
-            new Cesium.Color(1, 0.58, 0, 0.6);
-        var baseRadius = event.severity === 'Critical' ? 60000 : 40000;
-        var ringCount = event.severity === 'Critical' ? 3 : 2;
-
-        for (var r = 0; r < ringCount; r++) {
-            var delay = r * 0.3;
-            var entity = GlobeManager.viewer.entities.add({
-                position: Cesium.Cartesian3.fromDegrees(event.lng, event.lat),
-                ellipse: {
-                    semiMajorAxis: new Cesium.CallbackProperty(function(state) {
-                        var elapsed = (performance.now() / 1000 + delay) % 3;
-                        var t = elapsed / 3;
-                        return baseRadius * (0.3 + t * 2.5);
-                    }, false),
-                    semiMinorAxis: new Cesium.CallbackProperty(function(state) {
-                        var elapsed = (performance.now() / 1000 + delay) % 3;
-                        var t = elapsed / 3;
-                        return baseRadius * (0.3 + t * 2.5);
-                    }, false),
-                    material: new Cesium.CallbackProperty(function(state) {
-                        var elapsed = (performance.now() / 1000 + delay) % 3;
-                        var t = elapsed / 3;
-                        var alpha = 0.5 * (1 - t);
-                        return new Cesium.Color(sevColor.red, sevColor.green, sevColor.blue, alpha);
-                    }, false),
-                    outline: true,
-                    outlineColor: new Cesium.CallbackProperty(function() {
-                        var elapsed = (performance.now() / 1000 + delay) % 3;
-                        var t = elapsed / 3;
-                        return new Cesium.Color(sevColor.red, sevColor.green, sevColor.blue, 0.3 * (1 - t));
-                    }, false),
-                    height: 100
-                }
-            });
-            this.rippleEntities.push(entity);
-        }
-    },
-
-    addArc(event1, event2, idx) {
-        if (!GlobeManager.viewer) return;
-        if (!event1.lat || !event1.lng || !event2.lat || !event2.lng) return;
-
-        var start = Cesium.Cartesian3.fromDegrees(event1.lng, event1.lat, 0);
-        var end = Cesium.Cartesian3.fromDegrees(event2.lng, event2.lat, 0);
-        var dist = Cesium.Cartesian3.distance(start, end);
-        var midHeight = dist * 0.25;
-
-        var midCartographic = new Cesium.Cartographic(
-            (Cesium.Cartographic.fromCartesian(start).longitude + Cesium.Cartographic.fromCartesian(end).longitude) / 2,
-            (Cesium.Cartographic.fromCartesian(start).latitude + Cesium.Cartographic.fromCartesian(end).latitude) / 2
-        );
-        var mid = Cesium.Cartesian3.fromRadians(
-            midCartographic.longitude, midCartographic.latitude, midHeight
-        );
-
-        var points = [];
-        var segments = 30;
-        for (var s = 0; s <= segments; s++) {
-            var t = s / segments;
-            var u = 1 - t;
-            var x = u * u * start.x + 2 * u * t * mid.x + t * t * end.x;
-            var y = u * u * start.y + 2 * u * t * mid.y + t * t * end.y;
-            var z = u * u * start.z + 2 * u * t * mid.z + t * t * end.z;
-            points.push(new Cesium.Cartesian3(x, y, z));
-        }
-
-        var colors = [
-            new Cesium.Color(1, 0.58, 0, 0.4),
-            new Cesium.Color(1, 0.23, 0.19, 0.4),
-            new Cesium.Color(0, 0.7, 1, 0.4)
-        ];
-
-        var entity = GlobeManager.viewer.entities.add({
-            polyline: {
-                positions: points,
-                width: 1.5,
-                material: new Cesium.PolylineGlowMaterialProperty({
-                    glowPower: 0.15,
-                    color: colors[idx % colors.length]
-                }),
-                clampToGround: false
+    // Great-circle-ish elevated arc sampled in lng/lat space.
+    greatArc(a, b) {
+        try {
+            const coords = [];
+            const segs = 30;
+            for (let s = 0; s <= segs; s++) {
+                const t = s / segs;
+                let lng = a.lng + (b.lng - a.lng) * t;
+                let lat = a.lat + (b.lat - a.lat) * t;
+                // perpendicular bulge peaks mid-arc
+                const bulge = Math.sin(t * Math.PI) * Math.min(25, Math.hypot(b.lng - a.lng, b.lat - a.lat) * 0.18);
+                lat += bulge;
+                coords.push([lng, lat]);
             }
-        });
-        this.arcEntities.push(entity);
+            return coords;
+        } catch (_) { return null; }
     },
 
-    clearAll() {
-        if (!GlobeManager.viewer) return;
-        this.rippleEntities.forEach(function(e) {
-            try { GlobeManager.viewer.entities.remove(e); } catch(err) {}
+    startAnim() {
+        this.stopAnim();
+        this._t0 = performance.now() / 1000;
+        this._timer = setInterval(() => this.tick(), 50);
+    },
+    stopAnim() {
+        if (this._timer) { clearInterval(this._timer); this._timer = null; }
+    },
+    tick() {
+        if (!this.visible || typeof GlobeManager === 'undefined' || !this._rings.length) return;
+        const now = performance.now() / 1000 - this._t0;
+        const feats = this._rings.map((f) => {
+            const p = Object.assign({}, f.properties);
+            const t = ((now + (p._off || 0)) % 3) / 3;
+            p._rad = (p._base || 11) * (0.3 + t * 2.5);
+            p._a = Math.max(0, 0.5 * (1 - t));
+            return { type: 'Feature', geometry: f.geometry, properties: p };
         });
-        this.arcEntities.forEach(function(e) {
-            try { GlobeManager.viewer.entities.remove(e); } catch(err) {}
-        });
-        this.rippleEntities = [];
-        this.arcEntities = [];
+        GlobeManager.setGeoData('src-ripple', { type: 'FeatureCollection', features: feats });
+    },
+
+    applyVisibility() {
+        GlobeManager.setLayerVisible('ripple-ring', this.visible);
+        GlobeManager.setLayerVisible('ripple-arc-glow', this.visible);
+        GlobeManager.setLayerVisible('ripple-arc', this.visible);
+    },
+
+    clearAll(silent) {
+        this.stopAnim();
+        this._rings = [];
+        GlobeManager.setGeoData('src-ripple', null);
+        GlobeManager.setGeoData('src-ripple-arcs', null);
+        if (!silent) this.applyVisibility();
     },
 
     toggleVisibility(show) {
         this.visible = show;
         if (show) {
+            this.init();
             this.generateFromLiveEvents();
         } else {
             this.clearAll();

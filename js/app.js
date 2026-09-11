@@ -8,9 +8,9 @@ const GIBSLayerManager = {
             if (!this.activeLayer) {
                 this.activeLayer = await GlobeManager.addGIBSLayer('MODIS_Terra_CorrectedReflectance_TrueColor');
             }
-            if (this.activeLayer) this.activeLayer.show = true;
+            if (this.activeLayer) GlobeManager.setLayerVisible(this.activeLayer, true);
         } else if (this.activeLayer) {
-            this.activeLayer.show = false;
+            GlobeManager.setLayerVisible(this.activeLayer, false);
         }
     }
 };
@@ -20,17 +20,15 @@ const URLStateManager = {
 
     init() {
         this.params = new URLSearchParams(window.location.search);
-        if (!window.GlobeManager || !GlobeManager.viewer) return; // engine offline — skip camera restore
+        if (!window.GlobeManager || !GlobeManager.map) return; // engine offline — skip camera restore
         if (this.params.has('lat') && this.params.has('lng')) {
             const lat = parseFloat(this.params.get('lat'));
             const lng = parseFloat(this.params.get('lng'));
-            const zoom = parseFloat(this.params.get('zoom') || '5000000');
-            if (!isNaN(lat) && !isNaN(lng) && GlobeManager.viewer) {
-                GlobeManager.viewer.camera.flyTo({
-                    destination: Cesium.Cartesian3.fromDegrees(lng, lat, zoom),
-                    orientation: { heading: 0, pitch: Cesium.Math.toRadians(-90), roll: 0 },
-                    duration: 0
-                });
+            let zoom = parseFloat(this.params.get('zoom') || '2');
+            if (isNaN(zoom)) zoom = 2;
+            if (zoom > 30) zoom = GlobeManager.heightToZoom(zoom, lat); // legacy metre value
+            if (!isNaN(lat) && !isNaN(lng) && GlobeManager.map) {
+                try { GlobeManager.map.jumpTo({ center: [lng, lat], zoom: zoom }); } catch (_) {}
             }
         }
         if (this.params.has('layers')) {
@@ -50,13 +48,12 @@ const URLStateManager = {
     },
 
     update() {
-        if (!window.GlobeManager || !GlobeManager.viewer || typeof Cesium === 'undefined') return;
-        const cam = GlobeManager.viewer.camera;
-        const carto = Cesium.Cartographic.fromCartesian(cam.position);
+        if (!window.GlobeManager || !GlobeManager.map) return;
+        const c = GlobeManager.getCenter();
         const params = new URLSearchParams();
-        params.set('lat', Cesium.Math.toDegrees(carto.latitude).toFixed(4));
-        params.set('lng', Cesium.Math.toDegrees(carto.longitude).toFixed(4));
-        params.set('zoom', Math.round(carto.height).toString());
+        params.set('lat', c.lat.toFixed(4));
+        params.set('lng', c.lng.toFixed(4));
+        params.set('zoom', c.zoom.toFixed(2));
         const activeLayers = [];
         const layerMap = {
             'toggleDisasters': 'disasters', 'toggleWars': 'wars',
@@ -81,36 +78,35 @@ window.URLStateManager = URLStateManager;
 
 // Global Application Bootstrap
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log("Initializing Intelligence Platform...");
+    console.log('Initializing Intelligence Platform...');
 
-    // Wait for the Cesium loader chain (local vendor + CDN fallbacks) before
-    // booting the engine, so a slow CDN doesn't race the app. Non-fatal:
-    // UI layers boot regardless and no-op gracefully without a viewer.
-    if (window.__cesiumReady) {
+    // Wait for the MapLibre loader chain (local vendor + CDN fallbacks)
+    // before booting the engine. Non-fatal: UI boots regardless.
+    if (window.__maplibreReady) {
         try {
-            const src = await window.__cesiumReady;
-            console.log("Cesium library ready via " + src);
+            const src = await window.__maplibreReady;
+            console.log('MapLibre library ready via ' + src);
         } catch (e) {
-            console.warn("Cesium library unavailable, continuing in degraded mode:", e.message);
+            console.warn('MapLibre library unavailable, continuing in degraded mode:', e.message);
         }
     }
 
     try {
         await GlobeManager.init('globeContainer');
     } catch (e) {
-        console.error("GlobeManager init failed:", e);
+        console.error('GlobeManager init failed:', e);
     }
 
     try {
         if (typeof TerrainManager !== 'undefined' && TerrainManager.init) TerrainManager.init();
     } catch (e) {
-        console.warn("TerrainManager init failed:", e);
+        console.warn('TerrainManager init failed:', e);
     }
 
     try {
         if (typeof ControlManager !== 'undefined' && ControlManager.init) ControlManager.init();
     } catch (e) {
-        console.warn("ControlManager init failed:", e);
+        console.warn('ControlManager init failed:', e);
     }
 
     await new Promise(resolve => requestAnimationFrame(resolve));
@@ -141,7 +137,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (typeof requestIdleCallback !== 'undefined') requestIdleCallback(deferIndex);
                 else setTimeout(deferIndex, 0);
             }
-        } catch (e) { console.warn("SearchEngine init failed:", e); }
+        } catch (e) { console.warn('SearchEngine init failed:', e); }
 
         try { if (typeof SearchUI !== 'undefined' && SearchUI.init) SearchUI.init(); } catch (e) {}
         try { if (typeof OsirisLink !== 'undefined' && OsirisLink.init) OsirisLink.init(); } catch (e) {}
@@ -163,14 +159,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         URLStateManager.init();
         window._urlStateInterval = setInterval(() => URLStateManager.update(), 2000);
 
-        console.log("System Online");
-        
+        console.log('System Online');
+
         window.DisastersLayer = (typeof DisastersLayer !== 'undefined') ? DisastersLayer : window.DisastersLayer;
         window.WarsLayer = (typeof WarsLayer !== 'undefined') ? WarsLayer : window.WarsLayer;
         window.SearchEngine = (typeof SearchEngine !== 'undefined') ? SearchEngine : window.SearchEngine;
         window.LiveLayer = (typeof LiveLayer !== 'undefined') ? LiveLayer : window.LiveLayer;
         if (typeof NotificationSystem !== 'undefined' && window.LiveLayer && window.LiveLayer._lastEvents) { NotificationSystem.processEvents(window.LiveLayer._lastEvents); }
-        window.App = { status: "Online", version: "2.1.0" };
+        window.App = { status: 'Online', version: '3.0.0' };
     }, 0);
 });
 
@@ -232,7 +228,6 @@ function syncAllLayerVisibility() {
     });
 }
 
-function _processNotifications(events) { if (typeof NotificationSystem !== 'undefined' && events) NotificationSystem.processEvents(events); }
 function updateGlobalStats() {
     let total = 0;
     ['DisastersLayer','WarsLayer','MysteryLayer','HistoricalLayer','BordersLayer','AircraftLayer','SatelliteLayer','LiveLayer','HeatmapLayer','RippleArcLayer'].forEach(name => {
@@ -300,6 +295,8 @@ function setupUIListeners() {
             try { DrawerManager.closeModal(); } catch(e) {}
         }
     }
+    window.hideUI = hideUI;
+    window.showUI = showUI;
 
     var toggleSidebarBtn = document.getElementById('toggleSidebar');
     if (toggleSidebarBtn) {
@@ -345,48 +342,20 @@ function setupUIListeners() {
             }
             if (allEntities.length === 0) { alert('No events loaded yet. Enable a layer first.'); return; }
             var entity = allEntities[Math.floor(Math.random() * allEntities.length)];
-            var getVal = function(p) { return (p && typeof p.getValue === 'function') ? p.getValue() : p; };
-            var lat = getVal(entity.properties.lat);
-            var lng = getVal(entity.properties.lng);
-            if (lat !== undefined && lng !== undefined) {
+            var p = entity.properties || {};
+            if (typeof p.lat === 'number' && typeof p.lng === 'number') {
                 hideUI();
-                CameraManager.flyToIncident(lat, lng);
+                CameraManager.flyToIncident(p.lat, p.lng);
                 DrawerManager.open(entity);
             }
         });
     }
 
-    // Cleanup previous handler if re-initializing
-    if (window._cesiumClickHandler) { try { window._cesiumClickHandler.destroy(); } catch (_) {} window._cesiumClickHandler = null; }
-    if (typeof Cesium !== 'undefined' && window.GlobeManager && window.GlobeManager.viewer) {
-        var viewer = window.GlobeManager.viewer;
-        window._cesiumClickHandler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
-        // Hide chrome only on empty-globe clicks (not marker picks, not drags):
-        // a LEFT_DOWN+LEFT_UP pair with minimal movement and no picked entity.
-        var downPos = null;
-        window._cesiumClickHandler.setInputAction(function (movement) {
-            downPos = movement.position;
-        }, Cesium.ScreenSpaceEventType.LEFT_DOWN);
-        window._cesiumClickHandler.setInputAction(function (movement) {
-            try {
-                if (!downPos) return;
-                var dx = movement.position.x - downPos.x;
-                var dy = movement.position.y - downPos.y;
-                downPos = null;
-                if (dx * dx + dy * dy > 25) return; // it was a drag
-                var picked = viewer.scene.pick(movement.position);
-                if (!picked) hideUI();
-            } catch (_) { /* picking not ready */ }
-        }, Cesium.ScreenSpaceEventType.LEFT_UP);
-    }
-
     // Cleanup on page unload
     window.addEventListener('beforeunload', function() {
-        if (window._cesiumClickHandler) { try { window._cesiumClickHandler.destroy(); } catch (_) {} }
         if (window._urlStateInterval) clearInterval(window._urlStateInterval);
         if (window.LiveLayer && window.LiveLayer.destroy) window.LiveLayer.destroy();
         if (window.AircraftLayer && window.AircraftLayer.destroy) window.AircraftLayer.destroy();
         if (window.SatelliteLayer && window.SatelliteLayer.destroy) window.SatelliteLayer.destroy();
-        if (window.GlobeManager && window.GlobeManager.destroyCulling) window.GlobeManager.destroyCulling();
     });
 }

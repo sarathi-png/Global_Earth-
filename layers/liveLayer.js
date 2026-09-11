@@ -1,6 +1,9 @@
 const LiveLayer = {
     entities: [],
+    entitiesById: {},
     visible: false,
+    _key: 'live',
+    _initialized: false,
     refreshTimer: null,
     sseSource: null,
     lastRefresh: 0,
@@ -10,13 +13,13 @@ const LiveLayer = {
         'Floods': '#00b4ff', 'Drought': '#c9a227', 'Sea and Lake Ice': '#7fd4ff',
         'Dust and Haze': '#d4a373', 'Landslides': '#a0522d', 'Manmade': '#ff9500',
         'Snow': '#ffffff', 'Water Color': '#9cdef2', 'Earthquake': '#ffa3a3',
-        'Earthquakes': '#ff3b30', 'Wildfire': '#ff6b00', 'Wildfires': '#ff6b00',
-        'Flood': '#00b4ff', 'Floods': '#00b4ff', 'Storm': '#ffea00', 'Storms': '#ffea00',
-        'Volcano': '#ff3b30', 'Volcanoes': '#ff3b30',
+        'Earthquakes': '#ff3b30', 'Wildfire': '#ff6b00',
+        'Flood': '#00b4ff', 'Storm': '#ffea00', 'Storms': '#ffea00',
+        'Volcano': '#ff3b30',
         'Severe Weather': '#ffea00', 'Weather Alert': '#ffea00',
         'Disaster': '#ffb400', 'GDACS Alert': '#ff3b30',
         'Active Fire': '#ff6b00', 'Active Fire (VIIRS)': '#ff6b00',
-        'Snow': '#ffffff', 'Fog': '#cccccc', 'Unknown': '#ffb400'
+        'Fog': '#cccccc', 'Unknown': '#ffb400'
     },
 
     async init() {
@@ -75,7 +78,7 @@ const LiveLayer = {
             this.lastRefresh = Date.now();
             this.updateSourceBadge(sourceStatus, total);
         } catch (e) {
-            console.warn("LiveLayer refresh failed:", e);
+            console.warn('LiveLayer refresh failed:', e);
             this.setStatus('error');
         }
     },
@@ -89,26 +92,30 @@ const LiveLayer = {
 
     renderMarkers(data) {
         this.clearEntities();
-        if (!GlobeManager.viewer) return;
+        if (!GlobeManager.map) return;
         data.forEach(item => {
             try {
                 const color = this.CATEGORY_COLORS[item.category] || this.CATEGORY_COLORS[item.source] || '#ffb400';
-                const entity = MarkerFactory.createPoint(item, color);
+                const entity = MarkerFactory.createPoint(item, color, this._key);
                 entity.show = this.visible;
                 this.entities.push(entity);
-            } catch (e) { console.warn("LiveLayer marker failed:", item.id, e); }
+                if (entity.properties.severity === 'High' || entity.properties.severity === 'Critical') {
+                    if (typeof MarkerPulse !== 'undefined') MarkerPulse.create(entity);
+                }
+            } catch (e) { console.warn('LiveLayer marker failed:', item.id, e); }
         });
+        GlobeManager.syncLayer(this, this._key);
+        GlobeManager.setGroupVisible(this._key, this.visible);
         if (typeof updateGlobalStats === 'function') updateGlobalStats();
     },
 
     clearEntities() {
-        if (GlobeManager.viewer) {
-            this.entities.forEach(entity => {
-                if (entity && entity.id) { try { MarkerPulse.remove(entity.id); } catch(e) {} }
-                GlobeManager.viewer.entities.remove(entity);
-            });
+        if (typeof MarkerPulse !== 'undefined') {
+            this.entities.forEach((e) => { try { MarkerPulse.remove(e.id); } catch (_) {} });
         }
         this.entities = [];
+        this.entitiesById = {};
+        GlobeManager.syncLayer(this, this._key);
     },
 
     toggleVisibility(show) {
@@ -116,8 +123,11 @@ const LiveLayer = {
         if (show && this.entities.length === 0 && !this._initialized) {
             this._initialized = true;
             this.init();
+            return;
         }
         this.entities.forEach(entity => { entity.show = show; });
+        GlobeManager.syncLayer(this, this._key);
+        GlobeManager.setGroupVisible(this._key, show);
         if (typeof updateGlobalStats === 'function') updateGlobalStats();
     },
 

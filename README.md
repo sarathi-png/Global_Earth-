@@ -11,16 +11,16 @@ license: mit
 
 # Global Earth — GEO-INTEL Platform (fully static)
 
-A fully static 3D globe intelligence platform built with [CesiumJS](https://cesium.com/). Visualizes disasters, wars, mysteries, historical events, aircraft, satellites, weather, borders plus a live multi-source event feed on an interactive 3D earth with search, hover tooltips, single-click fly-to drawer (images via Wikipedia → Wikimedia → canvas), tabbed Street View (Google / Mapillary / OSM), and an outbound deep-link to the reference live app [osirisai.live](https://osirisai.live/) (external — no vendored code, no backend).
+A fully static 3D globe intelligence platform built with [MapLibre GL](https://maplibre.org/) (same engine + CARTO dark-matter globe design as [osirisai.live](https://osirisai.live/)). Visualizes disasters, wars, mysteries, historical events, aircraft, satellites, weather, borders plus a live multi-source event feed on an interactive 3D earth with search, hover tooltips, single-click fly-to drawer (images via Wikipedia → Wikimedia → canvas), tabbed Street View (Google / Mapillary / OSM), and an outbound deep-link to the reference live app [osirisai.live](https://osirisai.live/) (external — no vendored code, no backend).
 
 ## Features
 
 - **7+ Live NASA/USGS Sources** — EONET, USGS Earthquakes (FDSN), GDACS JSON API, NOAA Weather Alerts, FIRMS Fires, FEMA Disasters, ReliefWeb, Open-Meteo — direct browser calls, no server
 - **Committed monthly archive** — `data/archive-latest.json` (built by `npm run archive`) covers 2025-01-01 → last day of previous month; sidebar badge shows "Through {Mon YYYY}"; app works offline from snapshot, then merges live
 - **Real Aircraft & Satellites** — airplanes.live ADS-B + CelesTrak
-- **Street View (tabbed)** — Google keyless embed + Mapillary free embed + OSM map fallback; lazy iframes with spinner/timeout/external links; sidebar toggle is token-independent
-- **Legend hover + click** — hover tooltip (label, visible count, description); single click enables the layer and flies to it; markers single-click opens drawer + flies, double-click zooms closer
-- **OSIRIS Live mapping** — sidebar, legend, and per-incident drawer buttons open `https://osirisai.live/` (new tab, best-effort lat/lng/label deep-link)
+- **Street View (tabbed)** — Google keyless embed + Mapillary (nearest-photo embed with `?mapillary_key=`, graceful app-link fallback without) + OSM map fallback; lazy iframes with spinner/timeout/external links; sidebar toggle switches a keyless aerial-imagery overlay
+- **Legend hover + click** — hover tooltip (label, visible count, description); single click enables the layer and flies to it; markers single-click opens drawer + flies, double-click zooms closer, clusters expand on click
+- **OSIRIS Live mapping** — sidebar, legend, and per-incident drawer buttons open `https://osirisai.live/?lat=…&lng=…&zoom=…&label=…` (the OSIRIS app flies to the shared incident on load)
 - **GIBS / Heatmap / Ripple / DayNight** overlays; clustering, URL sync, PWA, offline-capable static assets
 
 ## Requirements
@@ -47,19 +47,20 @@ npm run archive             # writes data/archive-latest.json (START 2025-01-01 
 ### Client keys (no server; optional)
 
 ```
-?cesium_token=...&firms_key=...&unsplash_key=...
+?firms_key=...&unsplash_key=...&mapillary_key=...&map_style=<style.json URL>
 ```
 
-- **CESIUM_TOKEN** — Optional. https://ion.cesium.com/ for Ion imagery/terrain (else bundled texture + OSM fallback)
 - **FIRMS_MAP_KEY** — Optional. https://firms.modaps.eosdis.nasa.gov/api/area/ for fire data (else fires omitted)
 - **NASA_API_KEY** — Optional, defaults to `DEMO_KEY`
 - **UNSPLASH_ACCESS_KEY** — Optional. Without it, drawer images use Wikipedia → Wikimedia → canvas (no breakage)
+- **MAPILLARY_KEY** — Optional. https://mapillary.com/dashboard/developers — resolves the nearest street photo for the Mapillary tab (else the tab links out to the Mapillary app)
+- **MAP_STYLE** — Optional. Override the CARTO dark-matter basemap with any MapLibre style URL. No token needed for anything — the globe runs fully keyless.
 
 ### URL Parameters
 
 Share views with URL parameters:
 ```
-?lat=40.7128&lng=-74.0060&zoom=5000000&layers=disasters,weather,live
+?lat=40.7128&lng=-74.0060&zoom=6.5&layers=disasters,weather,live
 ```
 
 ## Architecture
@@ -79,24 +80,14 @@ Share views with URL parameters:
 | Open-Meteo Archive (`archive-api.open-meteo.com/...&start_date=&end_date=`) | Weather history per point | Native date range |
 | airplanes.live / CelesTrak / GIBS | Aircraft / satellites / imagery | Live |
 
-### Offline Architecture
+### Engine (OSIRIS design)
 
-The entire app runs without internet:
+- **MapLibre GL v4** — vendored locally under `vendor/maplibre/` (`npm run vendor`), pinned CDN fallbacks (jsDelivr → unpkg)
+- **Basemap** — CARTO dark-matter vector style with `projection: 'globe'`, maxPitch 85; if the style fails, a bundled dark raster style takes over so the globe always renders (no token, no texture files needed)
+- **Markers** — clustered GeoJSON sources with glow + dot + label layers (OSIRIS paint expressions); aircraft as rotated canvas plane icons; satellites ground-projected from Keplerian elements; day/night terminator fill; native heatmap layer; animated ripple rings/arcs
+- **Data** — All incident datasets are static JSON in `data/`; live feed merges the committed monthly snapshot first, then live sources
 
-- **CesiumJS 1.128** — Full bundle (JS, Workers, Assets, ThirdParty, Widgets) vendored locally under `vendor/cesium/`
-- **Earth imagery** — Bundled Blue Marble equirectangular texture (`assets/textures/earth-texture.jpg`)
-- **Terrain** — Ellipsoid fallback (no network terrain data bundled)
-- **Data** — All incident datasets are static JSON in `data/`
-
-### Online behavior (graceful upgrade)
-
-When the machine is online **and** a valid Cesium Ion token is set, the app automatically upgrades to:
-
-1. Ion world terrain (asset 1)
-2. Ion imagery (asset 3)
-3. OpenStreetMap tiles (last-resort fallback)
-
-Every network path has a catch-and-fallback, so a dead token or missing network never breaks the globe.
+Every network path has a catch-and-fallback, so a dead network never breaks the globe.
 
 ## Layers & Data
 
@@ -125,9 +116,9 @@ search/      Search index + UI
 ui/          Incident detail drawer (Street View tabs + OSIRIS Live deep-link), legend interactions
 animations/  GSAP UI animations, marker pulse
 js/          Bootstrap, config, archiveRange, osirisLink, liveApi (direct + snapshot), diagnostics, fallback, image chains
-scripts/     Vendor + deploy + build-archive.mjs (monthly snapshot → data/archive-latest.json)
+scripts/     Vendor (vendor-maplibre.js) + deploy + build-archive.mjs (monthly snapshot → data/archive-latest.json)
 css/         Stylesheets
-vendor/      CesiumJS (build-time vendored via scripts/vendor-cesium.js, gitignored), GSAP; Font Awesome via CDN
+vendor/      MapLibre GL (build-time vendored via scripts/vendor-maplibre.js, gitignored), GSAP; Font Awesome via CDN
 data/        JSON datasets + countries.geo.json + archive-latest.json
 assets/      App icons + earth texture (build-time vendored, gitignored)
 server.js    Dev-only static file server (production needs no server)
@@ -168,7 +159,7 @@ Dev server exposes `GET /api/health` → `{ status: 'ok', mode: 'static-dev' }` 
 
 ## Notes
 
-- `js/fallback.js` shows a "3D globe unavailable" banner only if CesiumJS itself fails to load
+- `js/fallback.js` shows a "3D globe unavailable" banner only if MapLibre GL itself fails to load
 - No build step, no npm dependencies for the frontend
 - Verified with headless browser tests in both online and fully-blocked-network modes
 - All live data sources are 100% free with no API keys required (except FIRMS for fire data)

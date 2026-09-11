@@ -10,58 +10,46 @@
     <link rel="manifest" href="manifest.json">
     <link rel="icon" type="image/svg+xml" href="assets/icons/icon-192.svg">
     
-    <!-- CesiumJS: local vendor first (same-origin Workers, offline-capable),
-         then pinned CDN fallbacks. Order-safe: document.write runs at parse
-         time so deferred app scripts always see the final Cesium (or none). -->
-    <link rel="stylesheet" href="vendor/cesium/Widgets/widgets.css"
-        onerror="var l=document.createElement('link');l.rel='stylesheet';l.href='https://cdn.jsdelivr.net/npm/cesium@1.119.0/Build/Cesium/Widgets/widgets.css';document.head.appendChild(l);">
-    <script src="vendor/cesium/Cesium.js"></script>
+    <!-- MapLibre GL (OSIRIS engine): local vendor first, then pinned CDN
+         fallbacks. Order-safe: document.write runs at parse time so deferred
+         app scripts always see the final maplibregl (or none). -->
+    <link rel="stylesheet" href="vendor/maplibre/maplibre-gl.css"
+        onerror="var l=document.createElement('link');l.rel='stylesheet';l.href='https://cdn.jsdelivr.net/npm/maplibre-gl@4/dist/maplibre-gl.css';document.head.appendChild(l);">
+    <script src="vendor/maplibre/maplibre-gl.js"></script>
     <script>
-      // Local-first, then pinned CDN fallbacks. document.write runs at parse
-      // time, so deferred app scripts always see the final result.
-      window.CESIUM_BASE_URL = 'vendor/cesium/';
-      window.CESIUM_SOURCE = 'local';
-      if (typeof Cesium === 'undefined') {
-        document.write('<script src="https://cdn.jsdelivr.net/npm/cesium@1.119.0/Build/Cesium/Cesium.js"><\/script>');
-        window.CESIUM_BASE_URL = 'https://cdn.jsdelivr.net/npm/cesium@1.119.0/Build/Cesium/';
-        window.CESIUM_SOURCE = 'jsdelivr';
+      window.MAPLIBRE_SOURCE = 'local';
+      if (typeof maplibregl === 'undefined') {
+        document.write('<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4/dist/maplibre-gl.js"><\/script>');
+        window.MAPLIBRE_SOURCE = 'jsdelivr';
       }
     </script>
     <script>
-      if (typeof Cesium === 'undefined') {
-        document.write('<script src="https://unpkg.com/cesium@1.119.0/Build/Cesium/Cesium.js"><\/script>');
-        window.CESIUM_BASE_URL = 'https://unpkg.com/cesium@1.119.0/Build/Cesium/';
-        window.CESIUM_SOURCE = 'unpkg';
-      }
-    </script>
-    <script>
-      if (typeof Cesium === 'undefined') {
-        document.write('<script src="https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/Cesium.js"><\/script>');
-        window.CESIUM_BASE_URL = 'https://cesium.com/downloads/cesiumjs/releases/1.119/Build/Cesium/';
-        window.CESIUM_SOURCE = 'cesium-cdn';
+      if (typeof maplibregl === 'undefined') {
+        document.write('<script src="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.js"><\/script>');
+        window.MAPLIBRE_SOURCE = 'unpkg';
       }
     </script>
     
     <!-- GSAP -->
-    <script src="vendor/gsap/gsap.min.js?v=2.1"></script>
+    <script src="vendor/gsap/gsap.min.js?v=3.0"></script>
     
     <!-- Font Awesome CDN -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <!-- Global Fonts (local) -->
-    <link rel="stylesheet" href="css/fonts.css?v=2.1">
+    <link rel="stylesheet" href="css/fonts.css?v=3.0">
 
     <!-- CSS -->
-    <link rel="stylesheet" href="css/main.css?v=2.1">
-    <link rel="stylesheet" href="css/globe.css?v=2.1">
-    <link rel="stylesheet" href="css/sidebar.css?v=2.1">
-    <link rel="stylesheet" href="css/popup.css?v=2.1">
-    <link rel="stylesheet" href="css/search.css?v=2.1">
-    <link rel="stylesheet" href="css/layers.css?v=2.1">
-    <link rel="stylesheet" href="css/animations.css?v=2.1">
-    <link rel="stylesheet" href="css/responsive.css?v=2.1">
-    <link rel="stylesheet" href="css/notifications.css?v=2.1">
-    <link rel="stylesheet" href="css/layout.css?v=2.1">
+    <link rel="stylesheet" href="css/main.css?v=3.0">
+    <link rel="stylesheet" href="css/globe.css?v=3.0">
+    <link rel="stylesheet" href="css/sidebar.css?v=3.0">
+    <link rel="stylesheet" href="css/popup.css?v=3.0">
+    <link rel="stylesheet" href="css/search.css?v=3.0">
+    <link rel="stylesheet" href="css/layers.css?v=3.0">
+    <link rel="stylesheet" href="css/animations.css?v=3.0">
+    <link rel="stylesheet" href="css/responsive.css?v=3.0">
+    <link rel="stylesheet" href="css/notifications.css?v=3.0">
+    <link rel="stylesheet" href="css/layout.css?v=3.0">
 </head>
 <body>
     <div id="appContainer">
@@ -335,73 +323,73 @@
     <div id="toastContainer"></div>
 
     <!-- JS Configuration -->
-    <script src="js/config.js?v=2.1"></script>
-    <script src="js/archiveRange.js?v=2.1"></script>
+    <script src="js/config.js?v=3.0"></script>
+    <script src="js/archiveRange.js?v=3.0"></script>
 
     <!-- Core Logic -->
-    <script src="core/globe.js?v=2.1" defer></script>
-    <script src="core/camera.js?v=2.1" defer></script>
-    <script src="core/terrain.js?v=2.1" defer></script>
-    <script src="core/controls.js?v=2.1" defer></script>
+    <script src="core/globe.js?v=3.0" defer></script>
+    <script src="core/camera.js?v=3.0" defer></script>
+    <script src="core/terrain.js?v=3.0" defer></script>
+    <script src="core/controls.js?v=3.0" defer></script>
 
     <!-- Animations -->
-    <script src="animations/markerPulse.js?v=2.1" defer></script>
+    <script src="animations/markerPulse.js?v=3.0" defer></script>
 
     <!-- Incidents -->
-    <script src="incidents/markers.js?v=2.1" defer></script>
+    <script src="incidents/markers.js?v=3.0" defer></script>
 
     <!-- Layers -->
-    <script src="layers/disastersLayer.js?v=2.1" defer></script>
-    <script src="layers/warsLayer.js?v=2.1" defer></script>
-    <script src="layers/mysteryLayer.js?v=2.1" defer></script>
-    <script src="layers/historicalLayer.js?v=2.1" defer></script>
-    <script src="layers/aircraftLayer.js?v=2.1" defer></script>
-    <script src="layers/satelliteLayer.js?v=2.1" defer></script>
-    <script src="layers/weatherLayer.js?v=2.1" defer></script>
-    <script src="layers/bordersLayer.js?v=2.1" defer></script>
+    <script src="layers/disastersLayer.js?v=3.0" defer></script>
+    <script src="layers/warsLayer.js?v=3.0" defer></script>
+    <script src="layers/mysteryLayer.js?v=3.0" defer></script>
+    <script src="layers/historicalLayer.js?v=3.0" defer></script>
+    <script src="layers/aircraftLayer.js?v=3.0" defer></script>
+    <script src="layers/satelliteLayer.js?v=3.0" defer></script>
+    <script src="layers/weatherLayer.js?v=3.0" defer></script>
+    <script src="layers/bordersLayer.js?v=3.0" defer></script>
 
     <!-- Live Data -->
-    <script src="js/liveApi.js?v=2.1" defer></script>
-    <script src="js/statsDashboard.js?v=2.1" defer></script>
-    <script src="layers/dayNightLayer.js?v=2.1" defer></script>
-    <script src="layers/heatmapLayer.js?v=2.1" defer></script>
-    <script src="layers/rippleArcLayer.js?v=2.1" defer></script>
-    <script src="layers/liveLayer.js?v=2.1" defer></script>
+    <script src="js/liveApi.js?v=3.0" defer></script>
+    <script src="js/statsDashboard.js?v=3.0" defer></script>
+    <script src="layers/dayNightLayer.js?v=3.0" defer></script>
+    <script src="layers/heatmapLayer.js?v=3.0" defer></script>
+    <script src="layers/rippleArcLayer.js?v=3.0" defer></script>
+    <script src="layers/liveLayer.js?v=3.0" defer></script>
 
     <!-- Search -->
-    <script src="search/searchEngine.js?v=2.1" defer></script>
-    <script src="search/searchUI.js?v=2.1" defer></script>
+    <script src="search/searchEngine.js?v=3.0" defer></script>
+    <script src="search/searchUI.js?v=3.0" defer></script>
 
     <!-- Debugging Diagnostics -->
-    <script src="js/debugger.js?v=2.1" defer></script>
+    <script src="js/debugger.js?v=3.0" defer></script>
 
     <!-- UI & Interactivity -->
-    <script src="ui/drawer.js?v=2.1" defer></script>
-    <script src="incidents/hoverPopup.js?v=2.1" defer></script>
-    <script src="incidents/clustering.js?v=2.1" defer></script>
+    <script src="ui/drawer.js?v=3.0" defer></script>
+    <script src="incidents/hoverPopup.js?v=3.0" defer></script>
+    <script src="incidents/clustering.js?v=3.0" defer></script>
     <!-- animations/uiAnimations removed (dead code) -->
 
     <!-- Cesium Load Fallback -->
-    <script src="js/fallback.js?v=2.1" defer></script>
+    <script src="js/fallback.js?v=3.0" defer></script>
 
     <!-- Image Generator -->
-    <script src="js/imageGenerator.js?v=2.1" defer></script>
+    <script src="js/imageGenerator.js?v=3.0" defer></script>
 
     <!-- Wikipedia Image Lookup -->
-    <script src="js/wikipediaImage.js?v=2.1" defer></script>
-    <script src="js/wikimediaCommons.js?v=2.1" defer></script>
-    <script src="js/unsplashImage.js?v=2.1" defer></script>
+    <script src="js/wikipediaImage.js?v=3.0" defer></script>
+    <script src="js/wikimediaCommons.js?v=3.0" defer></script>
+    <script src="js/unsplashImage.js?v=3.0" defer></script>
 
     <!-- StreetView -->
-    <script src="layers/streetViewLayer.js?v=2.1" defer></script>
-    <script src="js/osirisLink.js?v=2.1" defer></script>
-    <script src="ui/legend.js?v=2.1" defer></script>
+    <script src="layers/streetViewLayer.js?v=3.0" defer></script>
+    <script src="js/osirisLink.js?v=3.0" defer></script>
+    <script src="ui/legend.js?v=3.0" defer></script>
 
     <!-- Notifications -->
-    <script src="js/notifications.js?v=2.1" defer></script>
+    <script src="js/notifications.js?v=3.0" defer></script>
 
     <!-- App Bootstrapper -->
-    <script src="js/app.js?v=2.1" defer></script>
+    <script src="js/app.js?v=3.0" defer></script>
     <script>
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/sw.js').catch(() => {});

@@ -5,8 +5,7 @@ Thumbs.db
 *.mp4
 download*.png
 
-# Binary files (use CDN for CesiumJS, FA, fonts - HF rejects binaries)
-vendor/cesium/
+# Binary files (MapLibre dist is small enough to commit; FA/fonts via CDN)
 vendor/fontawesome/
 fonts/
 assets/textures/
