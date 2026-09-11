@@ -4,9 +4,9 @@
 // the location on load (see D:\Projects\osiris src/app/page.tsx).
 const OsirisLink = {
     BASE: 'https://osirisai.live/',
-    open(lat, lng, label, zoom) {
+    build(lat, lng, label, zoom) {
+        let url = this.BASE;
         try {
-            let url = this.BASE;
             const q = [];
             const la = Number(lat), ln = Number(lng);
             if (isFinite(la) && isFinite(ln) && la >= -90 && la <= 90 && ln >= -180 && ln <= 180) {
@@ -18,7 +18,12 @@ const OsirisLink = {
             else if (q.length) q.push('zoom=8');
             if (label) q.push('label=' + encodeURIComponent(String(label).slice(0, 80)));
             if (q.length) url += '?' + q.join('&');
-            window.open(url, '_blank', 'noopener');
+        } catch (_) {}
+        return url;
+    },
+    open(lat, lng, label, zoom) {
+        try {
+            window.open(this.build(lat, lng, label, zoom), '_blank', 'noopener');
         } catch (_) {
             window.open(this.BASE, '_blank', 'noopener');
         }

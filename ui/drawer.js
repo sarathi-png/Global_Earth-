@@ -114,6 +114,8 @@ const DrawerManager = {
                 osirisBtn.onclick = () => OsirisLink.open(lat, lng, title);
                 extra.appendChild(osirisBtn);
             }
+            // External intel cards (OSIRIS SatelliteCard / flight-popup parity)
+            this.renderIntelCard(extra, type, title, entity);
             // Coords footer
             const coordEl = document.createElement('div');
             coordEl.style.cssText = 'font-size:11px;color:#666;text-align:center;';
@@ -129,6 +131,44 @@ const DrawerManager = {
             feedBtn.style.cssText = 'display:block;text-align:center;padding:10px;border-radius:8px;background:#a78bfa;color:#fff;text-decoration:none;font-weight:600;';
             extra.appendChild(feedBtn);
         }
+    },
+
+    renderIntelCard(extra, type, title, entity) {
+        if (!extra) return;
+        try {
+            const props = (entity && entity.properties) || {};
+            const getVal = (p) => (p && typeof p.getValue === 'function') ? p.getValue() : p;
+            const clean = (s) => String(s == null ? '' : s).replace(/[<>"']/g, '');
+            if (type === 'aircraft') {
+                const callsign = clean(getVal(props.title) || title || '').replace(/\s+/g, '');
+                const rawId = clean((entity && entity.id) || getVal(props.id) || '');
+                const hex = (/^ac-([0-9a-f]+)$/i.test(rawId)) ? rawId.replace(/^ac-/i, '') : null;
+                if (!callsign) return;
+                const links = [
+                    ['FlightAware', 'https://www.flightaware.com/live/flight/' + encodeURIComponent(callsign)],
+                    ['RadarBox', 'https://www.radarbox.com/data/flights/' + encodeURIComponent(callsign)]
+                ];
+                if (hex) links.splice(1, 0, ['ADS-B Exchange', 'https://globe.adsbexchange.com/?icao=' + encodeURIComponent(hex)]);
+                const card = document.createElement('div');
+                card.className = 'detail-card';
+                card.innerHTML = '<h5>TRACK THIS FLIGHT</h5><div class="detail-links">' +
+                    links.map((l) => '<a href="' + l[1] + '" target="_blank" rel="noopener">' + l[0] + ' ↗</a>').join('') +
+                    '</div>';
+                extra.appendChild(card);
+            } else if (type === 'satellite') {
+                const rawId = clean(getVal(props.id) || '');
+                const m = rawId.match(/(\d{3,})/);
+                if (!m) return;
+                const norad = m[1];
+                const card = document.createElement('div');
+                card.className = 'detail-card';
+                card.innerHTML = '<h5>SATELLITE INTEL</h5><div class="detail-links">' +
+                    '<a href="https://www.n2yo.com/satellite/?s=' + encodeURIComponent(norad) + '" target="_blank" rel="noopener">N2YO Track ↗</a>' +
+                    '<a href="https://celestrak.org/satcat/search-results.php?NORAD_CAT_ID=' + encodeURIComponent(norad) + '" target="_blank" rel="noopener">CelesTrak ↗</a>' +
+                    '</div>';
+                extra.appendChild(card);
+            }
+        } catch (_) {}
     },
 
     openStreetView(lat, lng, title) {

@@ -1,0 +1,271 @@
+/* Phase 2 panels: layer counts, feed filters, share modal, presets, status bar, detail cards. */
+
+/* Layer + group count badges (injected by ui/layercounts.js) */
+.layer-item {
+    position: relative;
+}
+.layer-count {
+    margin-left: auto;
+    min-width: 22px;
+    text-align: center;
+    font-size: 10px;
+    font-weight: 700;
+    font-family: monospace;
+    color: #9fb3c8;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    padding: 1px 6px;
+    display: none;
+}
+.layer-count.has-count {
+    display: inline-block;
+}
+.group-count {
+    margin-left: 8px;
+    font-size: 10px;
+    font-weight: 700;
+    font-family: monospace;
+    color: #ffd700;
+    display: none;
+}
+.group-count.has-count {
+    display: inline;
+}
+
+/* Feed severity filter chips */
+.feed-filters {
+    display: flex;
+    gap: 4px;
+    padding: 8px 10px 0;
+    flex-wrap: wrap;
+}
+.feed-chip {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    padding: 3px 9px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: transparent;
+    color: #9fb3c8;
+    cursor: pointer;
+    font-family: inherit;
+}
+.feed-chip.active {
+    color: #ffd700;
+    border-color: rgba(255, 215, 0, 0.4);
+    background: rgba(255, 215, 0, 0.08);
+}
+.feed-item {
+    cursor: pointer;
+}
+.feed-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+.feed-coords {
+    font-size: 10px;
+    color: #666;
+    font-family: monospace;
+}
+
+/* Share modal */
+#shareModal {
+    position: fixed;
+    inset: 0;
+    z-index: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(4, 6, 12, 0.8);
+}
+#shareModal.hidden {
+    display: none;
+}
+.share-card {
+    width: 340px;
+    max-width: 92vw;
+    padding: 22px;
+    border-radius: 12px;
+}
+.share-card h3 {
+    margin: 0 0 6px;
+    font-size: 13px;
+    letter-spacing: 0.15em;
+    color: #ffd700;
+}
+.share-card p {
+    margin: 0 0 14px;
+    font-size: 11px;
+    color: #9fb3c8;
+    line-height: 1.6;
+}
+.share-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+.share-row input {
+    flex: 1;
+    min-width: 0;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 6px;
+    color: #e8e6e0;
+    font-size: 11px;
+    font-family: monospace;
+    padding: 7px 9px;
+}
+.share-btn {
+    padding: 7px 14px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 215, 0, 0.4);
+    background: rgba(255, 215, 0, 0.1);
+    color: #ffd700;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    font-family: inherit;
+}
+.share-btn:hover {
+    background: rgba(255, 215, 0, 0.2);
+}
+
+/* Saved views (sidebar presets) */
+#presetList {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 2px 0 4px;
+}
+.preset-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #cfd8e3;
+}
+.preset-goto {
+    flex: 1;
+    min-width: 0;
+    text-align: left;
+    background: transparent;
+    border: none;
+    color: inherit;
+    font-size: inherit;
+    cursor: pointer;
+    padding: 5px 6px;
+    border-radius: 6px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: inherit;
+}
+.preset-goto:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: #fff;
+}
+.preset-del {
+    background: transparent;
+    border: none;
+    color: #666;
+    cursor: pointer;
+    font-size: 12px;
+    padding: 2px 5px;
+}
+.preset-del:hover {
+    color: #ff3b30;
+}
+.preset-save-btn {
+    width: 100%;
+    margin-top: 4px;
+    padding: 7px;
+    border-radius: 6px;
+    border: 1px dashed rgba(255, 255, 255, 0.25);
+    background: transparent;
+    color: #9fb3c8;
+    font-size: 11.5px;
+    cursor: pointer;
+    font-family: inherit;
+}
+.preset-save-btn:hover {
+    color: #ffd700;
+    border-color: rgba(255, 215, 0, 0.4);
+}
+.preset-empty {
+    font-size: 11px;
+    color: #666;
+    padding: 2px 2px 4px;
+}
+
+/* Bottom status bar */
+#statusBar {
+    position: absolute;
+    left: 50%;
+    bottom: 12px;
+    transform: translateX(-50%);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 6px 16px;
+    border-radius: 10px;
+    font-size: 10.5px;
+    font-family: monospace;
+    color: #9fb3c8;
+    white-space: nowrap;
+    pointer-events: auto;
+}
+#statusBar .st-ok {
+    color: #4ade80;
+}
+#statusBar .st-warn {
+    color: #ff9500;
+}
+#statusBar .st-err {
+    color: #ff3b30;
+}
+#statusBar .st-dim {
+    opacity: 0.75;
+}
+#statusBar .st-sep {
+    opacity: 0.3;
+}
+
+/* Drawer detail cards (aircraft / satellite external intel) */
+.detail-card {
+    margin-top: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.detail-card h5 {
+    margin: 0 0 8px;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    color: #ffd700;
+}
+.detail-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.detail-links a {
+    font-size: 11px;
+    color: #4ade80;
+    text-decoration: none;
+    border: 1px solid rgba(74, 222, 128, 0.3);
+    border-radius: 6px;
+    padding: 4px 9px;
+}
+.detail-links a:hover {
+    background: rgba(74, 222, 128, 0.12);
+}
+
+@media (max-width: 768px) {
+    #statusBar {
+        display: none;
+    }
+}

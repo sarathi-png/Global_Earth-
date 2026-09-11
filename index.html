@@ -51,6 +51,7 @@
     <link rel="stylesheet" href="css/notifications.css?v=3.0">
     <link rel="stylesheet" href="css/layout.css?v=3.0">
     <link rel="stylesheet" href="css/viewcontrols.css?v=3.0">
+    <link rel="stylesheet" href="css/panels.css?v=3.0">
 </head>
 <body>
     <div id="appContainer">
@@ -187,8 +188,13 @@
                         <input type="checkbox" id="toggleStreetView">
                         <span class="slider round"></span>
                     </label>
-                    <span><i class="fas fa-street-view"></i> Street View (Ion)</span>
+                    <span><i class="fas fa-street-view"></i> Street View (Aerial)</span>
                 </div>
+                </details>
+                <details class="layer-group">
+                    <summary>Saved Views</summary>
+                <div id="presetList"></div>
+                <button id="presetSaveBtn" class="preset-save-btn" title="Save the current view">+ Save current view</button>
                 </details>
                 <details class="layer-group" open>
                     <summary>External Intel</summary>
@@ -278,10 +284,13 @@
             <button id="randomBtn" class="random-btn glass-panel" title="Jump to random event">
                 <i class="fas fa-random"></i>
             </button>
+            <button id="shareBtn" class="share-btn-rail glass-panel" title="Share this view">
+                <i class="fas fa-share-alt"></i>
+            </button>
             <div id="eventFeed">
                 <button id="feedToggle"><i class="fas fa-bell"></i><span id="feedBadge" class="feed-badge"></span></button>
                 <div class="feed-panel" id="feedPanel">
-                    <div class="feed-header"><h3>Live Event Feed <span id="feedCount" class="feed-count"></span></h3></div>
+                    <div class="feed-header"><h3>Live Event Feed <span id="feedCount" class="feed-count"></span></h3><div class="feed-filters" id="feedFilters"><button class="feed-chip active" data-sev="all">ALL</button><button class="feed-chip" data-sev="Critical">CRIT</button><button class="feed-chip" data-sev="High">HIGH</button><button class="feed-chip" data-sev="Moderate">MOD</button></div></div>
                     <div class="feed-body" id="eventFeedList"></div>
                 </div>
             </div>
@@ -298,6 +307,11 @@
                 <button id="viewSat" class="view-seg" title="Satellite view" aria-label="Satellite view"><i class="fas fa-satellite"></i><span>SAT</span></button>
             </div>
             <div id="scaleBar" class="glass-panel" title="Scale at map center"><div id="scaleBarFill"></div><span id="scaleBarLabel"></span></div>
+        </div>
+
+        <!-- Bottom status bar (OSIRIS GlobalStatusBar parity) -->
+        <div id="statusBar" class="glass-panel" aria-label="Status">
+            <span id="stLive">● —</span><span class="st-sep">|</span><span id="stEvents">0 events</span><span class="st-sep">|</span><span id="stView">3D · dark</span><span class="st-sep">|</span><span id="stCoords" class="st-dim">—, —</span>
         </div>
         <script>
         (function() {
@@ -400,6 +414,10 @@
     <script src="ui/legend.js?v=3.0" defer></script>
     <script src="ui/scalebar.js?v=3.0" defer></script>
     <script src="ui/shortcuts.js?v=3.0" defer></script>
+    <script src="ui/layercounts.js?v=3.0" defer></script>
+    <script src="ui/share.js?v=3.0" defer></script>
+    <script src="ui/presets.js?v=3.0" defer></script>
+    <script src="ui/statusbar.js?v=3.0" defer></script>
 
     <!-- Notifications -->
     <script src="js/notifications.js?v=3.0" defer></script>

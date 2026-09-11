@@ -17,6 +17,17 @@ const NotificationSystem = {
         if (this.feedToggle) {
             this.feedToggle.addEventListener('click', () => this.toggleFeed());
         }
+        this._sevFilter = 'all';
+        var filters = document.getElementById('feedFilters');
+        if (filters) {
+            filters.addEventListener('click', (e) => {
+                var btn = e.target.closest ? e.target.closest('.feed-chip') : null;
+                if (!btn) return;
+                this._sevFilter = btn.getAttribute('data-sev') || 'all';
+                filters.querySelectorAll('.feed-chip').forEach((c) => c.classList.toggle('active', c === btn));
+                this.renderFullFeed();
+            });
+        }
 
         if ('Notification' in window && Notification.permission === 'default') {
             // Don't request yet, wait for user interaction
@@ -113,8 +124,25 @@ const NotificationSystem = {
         this.renderFeedItem(item, true);
     },
 
+    passesFilter(item) {
+        if (!this._sevFilter || this._sevFilter === 'all') return true;
+        return item.severity === this._sevFilter;
+    },
+
+    findEntity(item) {
+        // Resolve a feed item back to its live-layer entity for drawer opens.
+        try {
+            if (typeof LiveLayer !== 'undefined' && LiveLayer.entitiesById) {
+                const ent = LiveLayer.entitiesById['live:' + item.id] || LiveLayer.entitiesById[item.id];
+                if (ent) return ent;
+            }
+        } catch (_) {}
+        return null;
+    },
+
     renderFeedItem(item, prepend) {
         if (!this.feedList) return;
+        if (!this.passesFilter(item)) return;
         var iconMap = {
             'Earthquake': 'fa-house-crack', 'Flood': 'fa-water', 'Floods': 'fa-water',
             'Wildfire': 'fa-fire', 'Wildfires': 'fa-fire', 'Tropical Cyclone': 'fa-hurricane',
@@ -129,15 +157,22 @@ const NotificationSystem = {
 
         var el = document.createElement('div');
         el.className = 'feed-item';
+        var coords = (item.lat !== undefined && item.lng !== undefined)
+            ? '<div class="feed-coords">' + Number(item.lat).toFixed(2) + ', ' + Number(item.lng).toFixed(2) + '</div>' : '';
         el.innerHTML = '<div class="feed-icon ' + sevClass + '"><i class="fas ' + icon + '"></i></div>' +
             '<div class="feed-info">' +
             '<div class="feed-title">' + this.esc(item.title) + '</div>' +
-            '<div class="feed-meta">' + this.esc(item.source || '') + ' &middot; ' + timeStr + '</div>' +
+            '<div class="feed-meta">' + this.esc(item.source || '') + ' &middot; ' + timeStr + '</div>' + coords +
             '</div>';
 
+        var self = this;
         el.addEventListener('click', function() {
             if (item.lat !== undefined && item.lng !== undefined) {
                 CameraManager.flyToIncident(item.lat, item.lng);
+            }
+            var ent = self.findEntity(item);
+            if (ent && typeof DrawerManager !== 'undefined') {
+                try { DrawerManager.open(ent); } catch (_) {}
             }
         });
 

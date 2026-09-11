@@ -155,6 +155,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         try { if (typeof StatsDashboard !== 'undefined' && StatsDashboard.init) StatsDashboard.init(); } catch (e) {}
         try { if (typeof ScaleBar !== 'undefined' && ScaleBar.init) ScaleBar.init(); } catch (e) {}
         try { if (typeof Shortcuts !== 'undefined' && Shortcuts.init) Shortcuts.init(); } catch (e) {}
+        try { if (typeof SharePanel !== 'undefined' && SharePanel.init) SharePanel.init(); } catch (e) {}
+        try { if (typeof ViewPresets !== 'undefined' && ViewPresets.init) ViewPresets.init(); } catch (e) {}
+        try { if (typeof StatusBar !== 'undefined' && StatusBar.init) StatusBar.init(); } catch (e) {}
 
         try { if (typeof CameraManager !== 'undefined' && CameraManager.home) CameraManager.home(); } catch (e) {}
 
@@ -247,6 +250,7 @@ function updateGlobalStats() {
     });
     const badge = document.getElementById('activeMarkerCount');
     if (badge) badge.innerText = total;
+    try { if (typeof updateLayerCounts === 'function') updateLayerCounts(); } catch (_) {}
 }
 
 // Map view strip (OSIRIS ViewSegment parity): reflects projection + basemap,
