@@ -105,14 +105,14 @@ const DrawerManager = {
             svBtn.style.cssText = 'width:100%;padding:10px;border-radius:8px;border:1px solid rgba(74,222,128,0.3);background:rgba(74,222,128,0.12);color:#4ade80;cursor:pointer;font-size:13px;';
             svBtn.onclick = () => this.openStreetView(lat, lng, title);
             extra.appendChild(svBtn);
-            // OSIRIS link if available
-            if (typeof OsirisLayer !== 'undefined') {
-                const osirisLink = document.createElement('a');
-                osirisLink.href = `https://github.com/simplifaisoul/osiris`;
-                osirisLink.target = '_blank';
-                osirisLink.innerHTML = '<i class="fas fa-external-link-alt"></i> OSIRIS Intel — sensordata';
-                osirisLink.style.cssText = 'display:block;text-align:center;padding:8px;border-radius:8px;background:rgba(167,139,250,0.12);border:1px solid rgba(167,139,250,0.3);color:#a78bfa;font-size:12px;text-decoration:none;';
-                extra.appendChild(osirisLink);
+            // OSIRIS Live deep-link (external reference app)
+            if (typeof OsirisLink !== 'undefined') {
+                const osirisBtn = document.createElement('button');
+                osirisBtn.type = 'button';
+                osirisBtn.innerHTML = '<i class="fas fa-satellite-dish"></i> View on OSIRIS Live ↗';
+                osirisBtn.style.cssText = 'display:block;width:100%;padding:8px;border-radius:8px;background:rgba(0,229,255,0.10);border:1px solid rgba(0,229,255,0.35);color:#7FE9FF;font-size:12px;cursor:pointer;';
+                osirisBtn.onclick = () => OsirisLink.open(lat, lng, title);
+                extra.appendChild(osirisBtn);
             }
             // Coords footer
             const coordEl = document.createElement('div');
@@ -136,6 +136,7 @@ const DrawerManager = {
             const html = StreetViewLayer.openPanorama(lat, lng, title);
             if (this.modalBody) {
                 this.modalBody.innerHTML = html;
+                if (StreetViewLayer.bindPanorama) StreetViewLayer.bindPanorama(this.modalBody);
                 this.modal.classList.remove('hidden');
                 return;
             }

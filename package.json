@@ -4,10 +4,12 @@
   "description": "3D globe intelligence platform with real-time disaster, weather, aircraft, and satellite data",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js 3000",
+    "dev": "node server.js 8080",
     "deploy": "node scripts/deploy.js",
     "build": "node scripts/vendor-cesium.js",
-    "vendor": "node scripts/vendor-cesium.js --force"
+    "vendor": "node scripts/vendor-cesium.js --force",
+    "archive": "node scripts/build-archive.mjs",
+    "serve": "node server.js 8080"
   },
   "author": "OpenCode",
   "license": "MIT",

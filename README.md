@@ -9,55 +9,51 @@ pinned: false
 license: mit
 ---
 
-# Global Earth — GEO-INTEL Platform (OSIRIS-merged)
+# Global Earth — GEO-INTEL Platform (fully static)
 
-A fully offline-capable 3D globe intelligence platform built with [CesiumJS](https://cesium.com/) **merged with [OSIRIS](https://github.com/simplifaisoul/osiris)** — an 8k★ open-source OSINT map (Next.js 16 + MapLibre, MIT). Visualizes disasters, wars, mysteries, historical events, aircraft, satellites, weather, borders **plus OSIRIS live CCTV (60+ countries), maritime ports/chokepoints/AIS ships, conflict zones, flights and satellite constellations** on an interactive 3D earth with search, timeline, hover/click drawer (real images via Wikipedia → Wikimedia → Unsplash → canvas, Street View via Ion).
+A fully static 3D globe intelligence platform built with [CesiumJS](https://cesium.com/). Visualizes disasters, wars, mysteries, historical events, aircraft, satellites, weather, borders plus a live multi-source event feed on an interactive 3D earth with search, hover tooltips, single-click fly-to drawer (images via Wikipedia → Wikimedia → canvas), tabbed Street View (Google / Mapillary / OSM), and an outbound deep-link to the reference live app [osirisai.live](https://osirisai.live/) (external — no vendored code, no backend).
 
 ## Features
 
-- **OSIRIS-merged Intelligence** — Single server at `http://localhost:8080` (`/api/osiris/*` native + proxy fallback to upstream OSIRIS on `:4000` if running). Vendored under `osiris/api + osiris/lib` (see `osiris-README.md`). Layers: **CCTV (TfL, WSDOT, worldwide)**, **Maritime ports + chokepoints + live AIS ships**, **Conflict zones + live RSS events**, **Flights (ADS-B)**, **Satellites (CelesTrak)** — all as CesiumJS entities via one `OSIRIS Intel` toggle (purple).
-- **6+ Live NASA/USGS Sources** — EONET, USGS Earthquakes, GDACS, NOAA Weather Alerts, FIRMS Fires, FEMA Disasters, Open-Meteo
-- **Real Aircraft & Satellites** — airplanes.live ADS-B + CelesTrak TLE propagation (also via OSIRIS-merged satellites endpoint)
-- **Street View** — Cesium Ion Bing overlay + Google Street View panorama modal
-- **Real Event Images** — Drawer fetches Wikipedia → Wikimedia Commons → Unsplash (`/api/unsplash` proxied with `UNSPLASH_ACCESS_KEY`) → canvas generator
-- **GIBS / Heatmap / Ripple / DayNight** overlays
-- **SSE Streaming, clustering, URL sync, PWA, fully offline with bundled assets**
+- **7+ Live NASA/USGS Sources** — EONET, USGS Earthquakes (FDSN), GDACS JSON API, NOAA Weather Alerts, FIRMS Fires, FEMA Disasters, ReliefWeb, Open-Meteo — direct browser calls, no server
+- **Committed monthly archive** — `data/archive-latest.json` (built by `npm run archive`) covers 2025-01-01 → last day of previous month; sidebar badge shows "Through {Mon YYYY}"; app works offline from snapshot, then merges live
+- **Real Aircraft & Satellites** — airplanes.live ADS-B + CelesTrak
+- **Street View (tabbed)** — Google keyless embed + Mapillary free embed + OSM map fallback; lazy iframes with spinner/timeout/external links; sidebar toggle is token-independent
+- **Legend hover + click** — hover tooltip (label, visible count, description); single click enables the layer and flies to it; markers single-click opens drawer + flies, double-click zooms closer
+- **OSIRIS Live mapping** — sidebar, legend, and per-incident drawer buttons open `https://osirisai.live/` (new tab, best-effort lat/lng/label deep-link)
+- **GIBS / Heatmap / Ripple / DayNight** overlays; clustering, URL sync, PWA, offline-capable static assets
 
 ## Requirements
 
-- [Node.js](https://nodejs.org/) (v18+)
+- Any static host (GitHub Pages / Netlify / Render Static) — or [Node.js](https://nodejs.org/) v18+ for local dev / `npm run archive`
 
-## Quick Start
+## Quick Start (static)
 
 ```bash
-npm start          # or: node server.js [port]
+npx serve .                 # or: python -m http.server 8080
+# dev alternative: node server.js [port]   (dev-only static server, optional)
 ```
 
-Open `http://localhost:8080/`
+Open `http://localhost:8080/` (or `3000` for `npm run dev`).
 
-To use a different port: `node server.js 9000`
+Monthly archive snapshot:
+
+```bash
+npm run archive             # writes data/archive-latest.json (START 2025-01-01 → previous-month-end)
+```
 
 ## Configuration
 
-### Environment Variables
+### Client keys (no server; optional)
 
-Copy `.env.example` to `.env` and configure:
-
-```env
-CESIUM_TOKEN=your_cesium_token_here
-FIRMS_MAP_KEY=your_firms_api_key_here
-NASA_API_KEY=your_nasa_api_key_here
-UNSPLASH_ACCESS_KEY=your_unsplash_key  # from https://unsplash.com/developers — enables real drawer photos
-OSIRIS_URL=http://localhost:4000       # optional: upstream OSIRIS for full live coverage
-AIS_API_KEY=your_ais_key               # optional: live ships (otherwise ports/chokepoints static)
+```
+?cesium_token=...&firms_key=...&unsplash_key=...
 ```
 
-- **CESIUM_TOKEN** — Optional. Get from https://ion.cesium.com/ for Ion imagery/terrain
-- **FIRMS_MAP_KEY** — Optional. Get from https://firms.modaps.eosdis.nasa.gov/api/area/ for fire data
-- **NASA_API_KEY** — Optional. For additional NASA APIs
-- **UNSPLASH_ACCESS_KEY** — Optional. Enables `/api/unsplash` real photos (free 50/hr demo, 5k/hr prod)
-- **OSIRIS_URL** — Optional. Only needed if you run upstream OSIRIS separately for extended coverage; merged native `/api/osiris/*` already works without it
-- **AIS_API_KEY** — Optional. Live AIS ships (overlaps static ports/chokepoints)
+- **CESIUM_TOKEN** — Optional. https://ion.cesium.com/ for Ion imagery/terrain (else bundled texture + OSM fallback)
+- **FIRMS_MAP_KEY** — Optional. https://firms.modaps.eosdis.nasa.gov/api/area/ for fire data (else fires omitted)
+- **NASA_API_KEY** — Optional, defaults to `DEMO_KEY`
+- **UNSPLASH_ACCESS_KEY** — Optional. Without it, drawer images use Wikipedia → Wikimedia → canvas (no breakage)
 
 ### URL Parameters
 
@@ -68,20 +64,20 @@ Share views with URL parameters:
 
 ## Architecture
 
-### Live Data Sources (All Free)
+### Live Data Sources (All Free, keyless unless noted)
 
-| Source | Type | Update Frequency |
-|--------|------|------------------|
-| NASA EONET | Natural Events | Real-time |
-| USGS Earthquakes | Seismic Data | Real-time |
-| GDACS | Disaster Alerts | Real-time |
-| NOAA NWS | Weather Alerts | Real-time |
-| NASA FIRMS | Fire Detection | Daily |
-| FEMA | Disaster Declarations | Daily |
-| Open-Meteo | Weather Data | Hourly |
-| airplanes.live | Aircraft ADS-B | Real-time |
-| CelesTrak | Satellite TLE | Daily |
-| NASA GIBS | Satellite Imagery | Daily |
+| Source | Type | Range support |
+|--------|------|---------------|
+| USGS FDSN Event (`earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime=&endtime=&minmagnitude=`) | Earthquakes back to 1900 | Full date range → previous-month-end |
+| NASA EONET (`eonet.gsfc.nasa.gov/api/v3/events?status=all`) | Natural events | Bounded client-side to window |
+| GDACS JSON API (`gdacs.org/gdacsapi/api/events/geteventlist/SEARCH?fromdate=&todate=`) | EQ/TC/FL/VO/WF/DR alerts | Native from/to (≤100/page) |
+| NOAA NWS (`api.weather.gov/alerts/active`) | Weather alerts | Current (US) |
+| NASA FIRMS VIIRS CSV (key via `?firms_key=`) | Fire detection | Per-date archive loop |
+| FEMA (`fema.gov/api/open/v2/...?$filter=declarationDate ge/le`) | US disaster declarations | Native date filter |
+| ReliefWeb (`api.reliefweb.int/v2/disasters?appname=`) | Humanitarian disasters | Date filter |
+| GDELT 2.1 Doc (`api.gdeltproject.org/...&startdatetime=&enddatetime=`) | News events | Native datetime range |
+| Open-Meteo Archive (`archive-api.open-meteo.com/...&start_date=&end_date=`) | Weather history per point | Native date range |
+| airplanes.live / CelesTrak / GIBS | Aircraft / satellites / imagery | Live |
 
 ### Offline Architecture
 
@@ -114,31 +110,27 @@ Every network path has a catch-and-fallback, so a dead token or missing network 
 | Satellites | CelesTrak TLE | CelesTrak |
 | Weather Overlay | Open-Meteo | Open-Meteo |
 | Balance of Power | `data/countries.geo.json` | Natural Earth |
-| Live Events | 6+ sources | EONET, USGS, GDACS, NOAA, FIRMS, FEMA |
+| Live Events | 7+ sources + snapshot | EONET, USGS FDSN, GDACS JSON, NOAA, FIRMS, FEMA, ReliefWeb, GDELT |
+| Archive | `data/archive-latest.json` | Built by `npm run archive` (start → previous-month-end) |
 | GIBS Satellite | NASA GIBS | NASA |
-| **OSIRIS CCTV** | 60+ countries | TfL, WSDOT, Caltrans, 511, YouTube live (via OSIRIS) |
-| **Maritime** | 30+ ports, 7 chokepoints, live AIS | aisstream.io (merged static + live) |
-| **Conflicts** | 9+ warzones + live RSS | BBC/AlJazeera/ReliefWeb (merged) |
-| **OSIRIS Flights** | ADS-B | airplanes.live (via OSIRIS) |
-| **OSIRIS Satellites** | 400+ constellations | CelesTrak (via OSIRIS) |
+| External intel | Outbound deep-link | [osirisai.live](https://osirisai.live/) (reference app, no integration) |
 
 ## Project Structure
 
 ```
 core/        Globe, camera, controls, terrain managers
-layers/      One module per data layer (+ osirisLayer.js merged, streetViewLayer.js)
-osiris/      Vendored OSIRIS source: api + lib (+ engine) — merged under single server (osiris-README.md, osiris-LICENSE)
+layers/      One module per data layer (streetViewLayer.js = tabbed Google/Mapillary/OSM)
 incidents/   Marker factory, hover popup, clustering
 search/      Search index + UI
-timeline/    Year slider + playback
-ui/          Incident detail drawer (with StreetView + OSIRIS extra panel)
+ui/          Incident detail drawer (Street View tabs + OSIRIS Live deep-link), legend interactions
 animations/  GSAP UI animations, marker pulse
-js/          Bootstrap, config (now with OSIRIS.merged), diagnostics, fallback, image chains
+js/          Bootstrap, config, archiveRange, osirisLink, liveApi (direct + snapshot), diagnostics, fallback, image chains
+scripts/     Vendor + deploy + build-archive.mjs (monthly snapshot → data/archive-latest.json)
 css/         Stylesheets
 vendor/      CesiumJS (build-time vendored via scripts/vendor-cesium.js, gitignored), GSAP; Font Awesome via CDN
-data/        JSON datasets + countries.geo.json
+data/        JSON datasets + countries.geo.json + archive-latest.json
 assets/      App icons + earth texture (build-time vendored, gitignored)
-server.js    Merged single server: static + proxy + native /api/osiris/* + /api/unsplash + /api/firms
+server.js    Dev-only static file server (production needs no server)
 ```
 
 ## Deployment
@@ -168,18 +160,11 @@ docker build -t global-earth .
 docker run -p 8080:8080 global-earth
 ```
 
-## API Endpoints (Merged)
+## Data endpoints (direct, no backend)
 
-The single merged server provides:
-
-- `GET /api/eonet, /api/usgs, /api/gdacs, /api/noaa, /api/fema` — NASA/USGS/NOAA proxies
-- `GET /api/unsplash?query=&per_page=` — Unsplash image search (proxied, key hidden server-side)
-- `GET /api/osiris/maritime` — ports + chokepoints (+ live ships if AIS key) — **merged native** (fallback proxies to `OSIRIS_URL`)
-- `GET /api/osiris/conflicts` — conflict zones + live RSS events — merged native
-- `GET /api/osiris/cctv?region=uk|us-west|all|&lat=&lng=` — worldwide CCTV — merged native (TfL, WSDOT, curated fallbacks; full coverage via upstream proxy)
-- `GET /api/osiris/flights, /api/osiris/satellites, /api/osiris/earthquakes, /api/osiris/fires, /api/osiris/news` — merged native
-- `GET /api/stream` — SSE real-time events
-- `GET /api/health` — `{ merged: 'osiris+global-earth', osiris_native: [...] }`
+The app calls public APIs straight from the browser (see table above); the only
+same-origin file is the committed `data/archive-latest.json` snapshot.
+Dev server exposes `GET /api/health` → `{ status: 'ok', mode: 'static-dev' }` for smoke tests only.
 
 ## Notes
 

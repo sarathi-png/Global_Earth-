@@ -20,4 +20,3 @@ assets/textures/
 # Secrets / local env
 .env
 .env.local
-osiris-embed/

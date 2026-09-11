@@ -1,4 +1,4 @@
-const CACHE_NAME = 'geo-intel-v2';
+const CACHE_NAME = 'geo-intel-v3-static';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -6,7 +6,6 @@ const STATIC_ASSETS = [
   '/css/globe.css',
   '/css/sidebar.css',
   '/css/popup.css',
-  '/css/timeline.css',
   '/css/search.css',
   '/css/layers.css',
   '/css/animations.css',
@@ -39,7 +38,9 @@ const STATIC_ASSETS = [
   '/layers/heatmapLayer.js',
   '/layers/rippleArcLayer.js',
   '/layers/streetViewLayer.js',
-  '/layers/osirisLayer.js',
+  '/js/osirisLink.js',
+  '/js/archiveRange.js',
+  '/ui/legend.js',
   '/js/notifications.js',
   '/js/statsDashboard.js',
   '/incidents/markers.js',
@@ -47,7 +48,6 @@ const STATIC_ASSETS = [
   '/incidents/clustering.js',
   '/search/searchEngine.js',
   '/search/searchUI.js',
-  '/timeline/timeline.js',
   '/ui/drawer.js',
   '/animations/markerPulse.js',
   '/data/disasters.json',
@@ -55,6 +55,7 @@ const STATIC_ASSETS = [
   '/data/mysteries.json',
   '/data/historical-events.json',
   '/data/countries.geo.json',
+  '/data/archive-latest.json',
   '/manifest.json'
 ];
 

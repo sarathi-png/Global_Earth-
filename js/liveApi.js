@@ -2,11 +2,14 @@ const LiveApi = {
     SOURCES: {
         EONET: CONFIG.SOURCES.EONET,
         USGS: CONFIG.SOURCES.USGS,
-        GDACS: (CONFIG.API.PROXY_BASE || '') + '/api/gdacs',
+        // Static-first: GDACS JSON API (CORS-friendly). Legacy XML RSS kept as fallback.
+        GDACS_API: 'https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH',
+        GDACS_XML: 'https://www.gdacs.org/xml/rss.xml',
         NOAA: CONFIG.SOURCES.NOAA_NWS,
         FIRMS: CONFIG.SOURCES.FIRMS,
         OPEN_METEO: CONFIG.SOURCES.OPEN_METEO,
-        FEMA: CONFIG.SOURCES.FEMA
+        FEMA: CONFIG.SOURCES.FEMA,
+        ARCHIVE_SNAPSHOT: 'data/archive-latest.json'
     },
 
     cache: new Map(),
@@ -137,8 +140,50 @@ const LiveApi = {
     },
 
     async fetchGdacsAlerts() {
+        // Primary (static, CORS-friendly): GDACS JSON search API bounded to the
+        // archive window (start → last day of previous month).
         try {
-            const doc = await this.fetchXml(this.SOURCES.GDACS);
+            let fromdate = '2025-01-01', todate = new Date().toISOString().slice(0, 10);
+            try {
+                if (typeof ArchiveRange !== 'undefined') {
+                    const r = ArchiveRange.gdacsRange();
+                    fromdate = r.fromdate; todate = r.todate;
+                }
+            } catch (_) {}
+            const url = this.SOURCES.GDACS_API + '?eventlist=EQ;TC;FL;VO;WF;DR'
+                + '&fromdate=' + encodeURIComponent(fromdate)
+                + '&todate=' + encodeURIComponent(todate);
+            const data = await this.fetchJson(url, 15000);
+            const records = Array.isArray(data) ? data : (data && (data.features || data.events || data.records)) || [];
+            if (records && records.length) {
+                const typeMap = { EQ: 'Earthquake', TC: 'Tropical Cyclone', FL: 'Flood', VO: 'Volcano', WF: 'Wildfire', DR: 'Drought' };
+                return records.slice(0, 100).map((r, i) => {
+                    const props = (r && r.properties) || r || {};
+                    const geom = r && r.geometry;
+                    let lat = props.lat ?? props.latitude, lng = props.lon ?? props.lng ?? props.longitude;
+                    if ((lat === undefined || lng === undefined) && geom && geom.coordinates) {
+                        lng = geom.coordinates[0]; lat = geom.coordinates[1];
+                    }
+                    lat = parseFloat(lat); lng = parseFloat(lng);
+                    if (!isFinite(lat) || !isFinite(lng)) return null;
+                    const et = props.eventtype || props.eventType || '';
+                    const category = typeMap[et] || props.category || 'Disaster';
+                    const alertLevel = props.alertlevel || props.alertLevel || 'Green';
+                    const country = props.country || props.iso3 || '';
+                    return {
+                        id: 'gdacs-' + (props.eventid || props.eventId || props.id || i),
+                        title: props.title || (category + (country ? ' — ' + country : '')),
+                        type: 'live', category, lat, lng, year: new Date().getFullYear(),
+                        severity: this.normalizeSeverity(alertLevel, 'gdacs'),
+                        description: (props.description || ('GDACS ' + alertLevel + ' ' + category + ' alert.')) + (country ? ' Country: ' + country + '.' : ''),
+                        source: 'GDACS', alertLevel, wikiQuery: category + (country ? ' in ' + country : '')
+                    };
+                }).filter(Boolean);
+            }
+        } catch (e) { console.warn('GDACS JSON fetch failed, trying XML fallback:', e.message); }
+        // Fallback: legacy XML RSS (needs proxy in some environments; may fail static — non-fatal).
+        try {
+            const doc = await this.fetchXml(this.SOURCES.GDACS_XML);
             const items = doc.querySelectorAll('item');
             var self = this;
             var eventTypeMap = {
@@ -369,8 +414,19 @@ const LiveApi = {
         } catch (e) { return null; }
     },
 
+    async fetchSnapshot() {
+        // Precomputed monthly archive (committed JSON, works offline/static).
+        // Shape: { meta: {start,end,generated}, events: [...] }
+        try {
+            const data = await this.fetchJson(this.SOURCES.ARCHIVE_SNAPSHOT, 8000);
+            const events = data && Array.isArray(data.events) ? data.events : [];
+            return { events, meta: (data && data.meta) || null };
+        } catch (_) { return { events: [], meta: null }; }
+    },
+
     async fetchAll() {
         var results = await Promise.allSettled([
+            this.fetchSnapshot(),
             this.fetchEonetEvents(),
             this.fetchUsgsQuakes(),
             this.fetchGdacsAlerts(),
@@ -381,11 +437,19 @@ const LiveApi = {
         ]);
         var events = [];
         var sourceStatus = {};
-        var sourceNames = ['EONET', 'USGS', 'GDACS', 'NOAA', 'FIRMS', 'FEMA', 'ReliefWeb'];
+        var sourceNames = ['Archive', 'EONET', 'USGS', 'GDACS', 'NOAA', 'FIRMS', 'FEMA', 'ReliefWeb'];
+        var seen = new Set();
         results.forEach((r, i) => {
             if (r.status === 'fulfilled') {
-                events.push(...r.value);
-                sourceStatus[sourceNames[i]] = { status: 'ok', count: r.value.length };
+                const val = (r.value && r.value.events) ? r.value.events : r.value;
+                const fresh = [];
+                (val || []).forEach(e => {
+                    if (!e || !e.id || seen.has(e.id)) return;
+                    seen.add(e.id);
+                    fresh.push(e);
+                });
+                events.push(...fresh);
+                sourceStatus[sourceNames[i]] = { status: 'ok', count: fresh.length };
             } else {
                 sourceStatus[sourceNames[i]] = { status: 'error', message: r.reason ? r.reason.message : 'unknown' };
             }

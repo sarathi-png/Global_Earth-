@@ -39,7 +39,7 @@ const URLStateManager = {
                 'mysteries': 'toggleMysteries', 'history': 'toggleHistory',
                 'aircraft': 'toggleAircraft', 'sat': 'toggleSat',
                 'weather': 'toggleWeather', 'borders': 'toggleBorders',
-                'live': 'toggleLive', 'gibs': 'toggleGIBS', 'streetview': 'toggleStreetView', 'osiris': 'toggleOsiris'
+                'live': 'toggleLive', 'gibs': 'toggleGIBS', 'streetview': 'toggleStreetView'
             };
             const layers = this.params.get('layers').split(',');
             Object.entries(layerMap).forEach(([key, toggleId]) => {
@@ -64,7 +64,7 @@ const URLStateManager = {
             'toggleAircraft': 'aircraft', 'toggleSat': 'sat',
             'toggleWeather': 'weather', 'toggleBorders': 'borders',
             'toggleLive': 'live', 'toggleGIBS': 'gibs', 'toggleHeatmap': 'heatmap', 'toggleRipple': 'ripple', 'toggleDayNight': 'daynight',
-            'toggleStreetView': 'streetview', 'toggleOsiris': 'osiris'
+            'toggleStreetView': 'streetview'
         };
         Object.entries(layerMap).forEach(([toggleId, key]) => {
             const el = document.getElementById(toggleId);
@@ -117,7 +117,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     setTimeout(() => {
         const layerInitPromises = [];
-        const layerNames = ['DisastersLayer', 'WarsLayer', 'MysteryLayer', 'HistoricalLayer', 'BordersLayer', 'LiveLayer', 'StreetViewLayer', 'OsirisLayer', 'RippleArcLayer', 'DayNightLayer'];
+        const layerNames = ['DisastersLayer', 'WarsLayer', 'MysteryLayer', 'HistoricalLayer', 'BordersLayer', 'LiveLayer', 'StreetViewLayer', 'RippleArcLayer', 'DayNightLayer'];
         layerNames.forEach(name => {
             if (typeof window[name] !== 'undefined' && window[name].init) {
                 layerInitPromises.push(
@@ -144,7 +144,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (e) { console.warn("SearchEngine init failed:", e); }
 
         try { if (typeof SearchUI !== 'undefined' && SearchUI.init) SearchUI.init(); } catch (e) {}
-        try { if (typeof TimelineManager !== 'undefined' && TimelineManager.init) TimelineManager.init(); } catch (e) {}
+        try { if (typeof OsirisLink !== 'undefined' && OsirisLink.init) OsirisLink.init(); } catch (e) {}
+        try { if (typeof ArchiveRange !== 'undefined' && ArchiveRange.init) ArchiveRange.init(); } catch (e) {}
         try { if (typeof DrawerManager !== 'undefined' && DrawerManager.init) DrawerManager.init(); } catch (e) {}
         try { if (typeof HoverPopup !== 'undefined' && HoverPopup.init) HoverPopup.init(); } catch (e) {}
         try { if (typeof UIAnimations !== 'undefined' && UIAnimations.init) UIAnimations.init(); } catch (e) {}
@@ -167,7 +168,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.DisastersLayer = (typeof DisastersLayer !== 'undefined') ? DisastersLayer : window.DisastersLayer;
         window.WarsLayer = (typeof WarsLayer !== 'undefined') ? WarsLayer : window.WarsLayer;
         window.SearchEngine = (typeof SearchEngine !== 'undefined') ? SearchEngine : window.SearchEngine;
-        window.TimelineManager = (typeof TimelineManager !== 'undefined') ? TimelineManager : window.TimelineManager;
         window.LiveLayer = (typeof LiveLayer !== 'undefined') ? LiveLayer : window.LiveLayer;
         if (typeof NotificationSystem !== 'undefined' && window.LiveLayer && window.LiveLayer._lastEvents) { NotificationSystem.processEvents(window.LiveLayer._lastEvents); }
         window.App = { status: "Online", version: "2.1.0" };
@@ -181,7 +181,7 @@ const TOGGLE_IDS = [
     'toggleDisasters','toggleWars','toggleMysteries','toggleHistory',
     'toggleAircraft','toggleSat','toggleWeather','toggleBorders',
     'toggleLive','toggleGIBS','toggleHeatmap','toggleRipple',
-    'toggleDayNight','toggleStreetView','toggleOsiris'
+    'toggleDayNight','toggleStreetView'
 ];
 
 const TOGGLE_ID_TO_LAYER_NAME = {
@@ -191,8 +191,7 @@ const TOGGLE_ID_TO_LAYER_NAME = {
     'toggleWeather':'WeatherLayer','toggleBorders':'BordersLayer',
     'toggleLive':'LiveLayer','toggleGIBS':null,
     'toggleHeatmap':'HeatmapLayer','toggleRipple':'RippleArcLayer',
-    'toggleDayNight':'DayNightLayer','toggleStreetView':'StreetViewLayer',
-    'toggleOsiris':'OsirisLayer'
+    'toggleDayNight':'DayNightLayer','toggleStreetView':'StreetViewLayer'
 };
 
 function layerByToggle(toggleId) {
@@ -207,7 +206,7 @@ const TOGGLE_ID_TO_LEGEND_CLASS = {
     'toggleHistory':'history','toggleAircraft':'aircraft','toggleSat':'sat',
     'toggleWeather':'weather','toggleBorders':'borders','toggleLive':'live',
     'toggleGIBS':'gibs','toggleHeatmap':'heatmap','toggleRipple':'ripple',
-    'toggleDayNight':'daynight','toggleStreetView':'streetview','toggleOsiris':'osiris'
+    'toggleDayNight':'daynight','toggleStreetView':'streetview'
 };
 
 function updateLegendVisibility() {
@@ -236,7 +235,7 @@ function syncAllLayerVisibility() {
 function _processNotifications(events) { if (typeof NotificationSystem !== 'undefined' && events) NotificationSystem.processEvents(events); }
 function updateGlobalStats() {
     let total = 0;
-    ['DisastersLayer','WarsLayer','MysteryLayer','HistoricalLayer','BordersLayer','AircraftLayer','SatelliteLayer','LiveLayer','HeatmapLayer','RippleArcLayer','OsirisLayer'].forEach(name => {
+    ['DisastersLayer','WarsLayer','MysteryLayer','HistoricalLayer','BordersLayer','AircraftLayer','SatelliteLayer','LiveLayer','HeatmapLayer','RippleArcLayer'].forEach(name => {
         const l = window[name];
         if (!l || !l.entities) return;
         try {
@@ -255,8 +254,7 @@ function setupUIListeners() {
         { id: 'toggleWeather' }, { id: 'toggleBorders' },
         { id: 'toggleLive' }, { id: 'toggleGIBS' },
         { id: 'toggleHeatmap' }, { id: 'toggleRipple' },
-        { id: 'toggleDayNight' }, { id: 'toggleStreetView' },
-        { id: 'toggleOsiris' }
+        { id: 'toggleDayNight' }, { id: 'toggleStreetView' }
     ];
 
     toggles.forEach(t => {
@@ -276,9 +274,6 @@ function setupUIListeners() {
                         }
                     } catch (err) { console.warn(t.id, 'toggle failed:', err); }
                     updateGlobalStats();
-                    if (window.TimelineManager && window.TimelineManager.applyFilters) {
-                        window.TimelineManager.applyFilters();
-                    }
                     if (typeof updateLegendVisibility === 'function') {
                         updateLegendVisibility();
                     }
@@ -392,7 +387,6 @@ function setupUIListeners() {
         if (window.LiveLayer && window.LiveLayer.destroy) window.LiveLayer.destroy();
         if (window.AircraftLayer && window.AircraftLayer.destroy) window.AircraftLayer.destroy();
         if (window.SatelliteLayer && window.SatelliteLayer.destroy) window.SatelliteLayer.destroy();
-        if (window.OsirisLayer && window.OsirisLayer.destroy) window.OsirisLayer.destroy();
         if (window.GlobeManager && window.GlobeManager.destroyCulling) window.GlobeManager.destroyCulling();
     });
 }

@@ -56,7 +56,6 @@
     <link rel="stylesheet" href="css/globe.css?v=2.1">
     <link rel="stylesheet" href="css/sidebar.css?v=2.1">
     <link rel="stylesheet" href="css/popup.css?v=2.1">
-    <link rel="stylesheet" href="css/timeline.css?v=2.1">
     <link rel="stylesheet" href="css/search.css?v=2.1">
     <link rel="stylesheet" href="css/layers.css?v=2.1">
     <link rel="stylesheet" href="css/animations.css?v=2.1">
@@ -203,22 +202,9 @@
                 </div>
                 </details>
                 <details class="layer-group" open>
-                    <summary>OSIRIS Intel</summary>
-                <div class="layer-item" data-layer="osiris">
-                    <label class="switch">
-                        <input type="checkbox" id="toggleOsiris">
-                        <span class="slider round"></span>
-                    </label>
-                    <span title="Merged: CCTV • Maritime+Ships • Chokepoints • Conflicts • Flights • Satellites (native /api/osiris/* + proxy to :4000)"><i class="fas fa-eye"></i> OSIRIS Intel <small class="merged-tag">MERGED</small></span>
-                </div>
-                <div class="layer-item osiris-sub">
-                    <span class="osiris-cctv"><i class="fas fa-video"></i> CCTV</span>
-                    <span class="osiris-ships"><i class="fas fa-anchor"></i> Ports & Ships</span>
-                    <span class="osiris-choke"><i class="fas fa-exclamation-triangle"></i> Chokepoints</span>
-                    <span class="osiris-conflict"><i class="fas fa-crosshairs"></i> Conflicts</span>
-                    <span class="osiris-flights"><i class="fas fa-plane"></i> Flights</span>
-                    <span class="osiris-sats"><i class="fas fa-satellite"></i> Satellites</span>
-                    <span class="osiris-meta">vendored: osiris/api + lib • <a href="osiris-README.md" target="_blank">docs</a> • <a href="https://github.com/simplifaisoul/osiris" target="_blank">upstream</a></span>
+                    <summary>External Intel</summary>
+                <div class="layer-item">
+                    <button id="openOsirisBtn" class="osiris-open-btn" title="Open OSIRIS live platform in a new tab"><i class="fas fa-satellite-dish"></i> Open OSIRIS Live ↗</button>
                 </div>
                 </details>
             </div>
@@ -235,6 +221,10 @@
                 <div class="status-item">
                     <span class="label">Live Data:</span>
                     <span id="liveDataStatus" class="value offline">Offline</span>
+                </div>
+                <div class="status-item">
+                    <span class="label">Archive:</span>
+                    <span id="archiveRangeBadge" class="value">Through —</span>
                 </div>
             </div>
             <div id="liveStats"></div>
@@ -268,18 +258,6 @@
             </div>
         </div>
 
-        <!-- Bottom Premium Timeline -->
-        <div id="timeline" class="glass-panel">
-            <button class="timeline-min-btn" id="timelineMinBtn" title="Minimize timeline">−</button>
-            <div class="timeline-controls">
-                <button id="playTimeline"><i class="fas fa-play"></i></button>
-                <div class="range-wrapper">
-                    <input type="range" id="yearSlider" min="1900" max="2025" value="2025">
-                    <div id="currentYearDisplay">2025</div>
-                </div>
-            </div>
-        </div>
-
         <!-- Right dock: legend + action rail (drawer overlays on open) -->
         <div id="rightDock">
         <!-- Floating Legend (clean redesigned) -->
@@ -296,18 +274,11 @@
                 <div class="legend-item" data-layer="sat"><span class="marker-symbol satellite"></span><span>Satellite Orbit</span></div>
                 <div class="legend-item" data-layer="weather"><span class="marker-symbol weather"></span><span>Weather</span></div>
                 <div class="legend-item" data-layer="live"><span class="marker-symbol live"></span><span>Live Feed</span></div>
-                <div class="legend-group-title">OSIRIS</div>
-                <div class="legend-item" data-layer="osiris"><span class="marker-symbol" style="background:#a78bfa;"></span><span>CCTV Cameras</span></div>
-                <div class="legend-item" data-layer="osiris"><span class="marker-symbol" style="background:#38bdf8;border-radius:2px;"></span><span>Ports / Naval</span></div>
-                <div class="legend-item" data-layer="osiris"><span class="marker-symbol" style="background:#f59e0b;border:2px solid #fff;"></span><span>Chokepoints</span></div>
-                <div class="legend-item" data-layer="osiris"><span class="marker-symbol" style="background:#ef4444;"></span><span>Conflict Zones</span></div>
-                <div class="legend-item" data-layer="osiris"><span class="marker-symbol" style="background:#22c55e;"></span><span>Flights</span></div>
-                <div class="legend-item" data-layer="osiris"><span class="marker-symbol" style="background:#f97316;border-radius:2px;"></span><span>Satellites</span></div>
                 <div class="legend-group-title">Effects</div>
                 <div class="legend-item" data-layer="heatmap"><span class="marker-symbol" style="background: radial-gradient(circle, rgba(255,149,0,0.6) 0%, transparent 70%);"></span><span>Heatmap</span></div>
                 <div class="legend-item" data-layer="ripple"><span class="marker-symbol" style="background: radial-gradient(circle, rgba(255,59,48,0.4) 0%, transparent 70%); border: 1px solid rgba(255,59,48,0.5);"></span><span>Ripple Rings</span></div>
             </div>
-            <a href="osiris-embed/" target="_blank" class="legend-osiris-link">🛰 Open OSIRIS Intelligence →</a>
+            <button id="legendOsirisBtn" class="legend-osiris-link" type="button">🛰 Open OSIRIS Live ↗</button>
         </div>
         <!-- Action rail: reset view / random event / live feed -->
         <nav id="actionRail" aria-label="Map actions">
@@ -365,6 +336,7 @@
 
     <!-- JS Configuration -->
     <script src="js/config.js?v=2.1"></script>
+    <script src="js/archiveRange.js?v=2.1"></script>
 
     <!-- Core Logic -->
     <script src="core/globe.js?v=2.1" defer></script>
@@ -377,25 +349,6 @@
 
     <!-- Incidents -->
     <script src="incidents/markers.js?v=2.1" defer></script>
-
-    <!-- Timeline minimize script -->
-    <script>
-    (function(){
-        var btn = document.getElementById('timelineMinBtn');
-        var tl = document.getElementById('timeline');
-        if (btn && tl) {
-            btn.addEventListener('click', function(){
-                if (tl.classList.contains('minimized')) {
-                    tl.classList.remove('minimized');
-                    btn.textContent = '−';
-                } else {
-                    tl.classList.add('minimized');
-                    btn.textContent = '+';
-                }
-            });
-        }
-    })();
-    </script>
 
     <!-- Layers -->
     <script src="layers/disastersLayer.js?v=2.1" defer></script>
@@ -419,10 +372,6 @@
     <script src="search/searchEngine.js?v=2.1" defer></script>
     <script src="search/searchUI.js?v=2.1" defer></script>
 
-    <!-- Timeline -->
-    <!-- timeline/filters removed (dead code) -->
-    <script src="timeline/timeline.js?v=2.1" defer></script>
-
     <!-- Debugging Diagnostics -->
     <script src="js/debugger.js?v=2.1" defer></script>
 
@@ -443,9 +392,10 @@
     <script src="js/wikimediaCommons.js?v=2.1" defer></script>
     <script src="js/unsplashImage.js?v=2.1" defer></script>
 
-    <!-- StreetView + OSIRIS -->
+    <!-- StreetView -->
     <script src="layers/streetViewLayer.js?v=2.1" defer></script>
-    <script src="layers/osirisLayer.js?v=2.1" defer></script>
+    <script src="js/osirisLink.js?v=2.1" defer></script>
+    <script src="ui/legend.js?v=2.1" defer></script>
 
     <!-- Notifications -->
     <script src="js/notifications.js?v=2.1" defer></script>

@@ -3,7 +3,7 @@ const GlobeManager = {
     _allLayerNames: [
         'DisastersLayer','WarsLayer','MysteryLayer','HistoricalLayer',
         'AircraftLayer','SatelliteLayer','WeatherLayer','LiveLayer',
-        'BordersLayer','OsirisLayer','HeatmapLayer','RippleArcLayer',
+        'BordersLayer','HeatmapLayer','RippleArcLayer',
         'DayNightLayer','StreetViewLayer'
     ],
 
