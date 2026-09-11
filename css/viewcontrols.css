@@ -1,0 +1,156 @@
+/* Map view controls — OSIRIS ViewSegment strip parity (3D/2D | MAP/SAT) + scale bar. */
+#viewControls {
+    position: absolute;
+    left: 120px;
+    bottom: 100px;
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    pointer-events: none;
+}
+
+#viewStrip {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    padding: 3px;
+    border-radius: 12px;
+    pointer-events: auto;
+}
+
+.view-seg {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 7px 11px;
+    border: 1px solid transparent;
+    border-radius: 9px;
+    background: transparent;
+    color: #9fb3c8;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.view-seg i {
+    font-size: 13px;
+}
+
+.view-seg:hover {
+    color: #e8e6e0;
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.view-seg.active {
+    color: #ffd700;
+    background: rgba(255, 215, 0, 0.10);
+    border-color: rgba(255, 215, 0, 0.35);
+}
+
+.view-divider {
+    width: 1px;
+    height: 20px;
+    margin: 0 4px;
+    background: rgba(255, 255, 255, 0.15);
+}
+
+#scaleBar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 10px;
+    border-radius: 8px;
+    pointer-events: auto;
+    width: fit-content;
+}
+
+#scaleBarFill {
+    height: 4px;
+    width: 100px;
+    border-left: 2px solid #e8e6e0;
+    border-right: 2px solid #e8e6e0;
+    border-bottom: 2px solid #e8e6e0;
+}
+
+#scaleBarLabel {
+    font-size: 10px;
+    color: #9fb3c8;
+    font-family: monospace;
+    white-space: nowrap;
+}
+
+.legend-hint {
+    padding: 8px 10px 2px;
+    font-size: 10.5px;
+    line-height: 1.5;
+    color: #8a93a3;
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+    margin-top: 6px;
+}
+
+/* Shortcuts help modal */
+#shortcutsModal {
+    position: fixed;
+    inset: 0;
+    z-index: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(4, 6, 12, 0.8);
+}
+
+#shortcutsModal.hidden {
+    display: none;
+}
+
+.shortcuts-card {
+    width: 320px;
+    padding: 22px;
+    border-radius: 12px;
+}
+
+.shortcuts-card h3 {
+    margin: 0 0 14px;
+    font-size: 13px;
+    letter-spacing: 0.15em;
+    color: #ffd700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.shortcut-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 0;
+}
+
+.shortcut-row span {
+    font-size: 10.5px;
+    color: #9fb3c8;
+}
+
+.shortcut-row kbd {
+    padding: 2px 9px;
+    border-radius: 5px;
+    font-size: 10px;
+    font-weight: 700;
+    color: #ffd700;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    font-family: monospace;
+}
+
+@media (max-width: 768px) {
+    #viewControls {
+        left: 12px;
+        bottom: 130px;
+    }
+    #scaleBar {
+        display: none;
+    }
+}

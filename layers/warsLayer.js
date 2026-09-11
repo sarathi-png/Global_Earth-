@@ -26,7 +26,7 @@ const WarsLayer = {
             const entity = MarkerFactory.createPoint(item, color, this._key);
             entity.show = this.visible;
             this.entities.push(entity);
-            if (entity.properties.severity === 'High' || entity.properties.severity === 'Critical' || entity.properties.severity === 'Extreme') {
+            if (entity.properties.severity === 'Critical' || entity.properties.severity === 'Extreme') {
                 if (typeof MarkerPulse !== 'undefined') MarkerPulse.create(entity);
             }
         });

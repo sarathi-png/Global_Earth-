@@ -19,7 +19,8 @@ A fully static 3D globe intelligence platform built with [MapLibre GL](https://m
 - **Committed monthly archive** — `data/archive-latest.json` (built by `npm run archive`) covers 2025-01-01 → last day of previous month; sidebar badge shows "Through {Mon YYYY}"; app works offline from snapshot, then merges live
 - **Real Aircraft & Satellites** — airplanes.live ADS-B + CelesTrak
 - **Street View (tabbed)** — Google keyless embed + Mapillary (nearest-photo embed with `?mapillary_key=`, graceful app-link fallback without) + OSM map fallback; lazy iframes with spinner/timeout/external links; sidebar toggle switches a keyless aerial-imagery overlay
-- **Legend hover + click** — hover tooltip (label, visible count, description); single click enables the layer and flies to it; markers single-click opens drawer + flies, double-click zooms closer, clusters expand on click
+- **Legend hover + click** — hover tooltip (label, visible count, description); single click enables the layer and flies to it; markers single-click opens drawer + flies, double-click zooms closer, clusters expand on click; pulse rings only on Critical/Extreme events
+- **View controls (OSIRIS parity)** — bottom-left 3D/2D globe switch (`G`), MAP/SAT basemap switch (SAT = keyless ESRI aerial under markers), live scale bar, `?` shortcuts overlay (`R` home, `F` fullscreen, `S` copy share link, `L` panel, `I` feed, `ESC` close); projection persists in `&proj=`
 - **OSIRIS Live mapping** — sidebar, legend, and per-incident drawer buttons open `https://osirisai.live/?lat=…&lng=…&zoom=…&label=…` (the OSIRIS app flies to the shared incident on load)
 - **GIBS / Heatmap / Ripple / DayNight** overlays; clustering, URL sync, PWA, offline-capable static assets
 

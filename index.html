@@ -50,6 +50,7 @@
     <link rel="stylesheet" href="css/responsive.css?v=3.0">
     <link rel="stylesheet" href="css/notifications.css?v=3.0">
     <link rel="stylesheet" href="css/layout.css?v=3.0">
+    <link rel="stylesheet" href="css/viewcontrols.css?v=3.0">
 </head>
 <body>
     <div id="appContainer">
@@ -265,6 +266,7 @@
                 <div class="legend-group-title">Effects</div>
                 <div class="legend-item" data-layer="heatmap"><span class="marker-symbol" style="background: radial-gradient(circle, rgba(255,149,0,0.6) 0%, transparent 70%);"></span><span>Heatmap</span></div>
                 <div class="legend-item" data-layer="ripple"><span class="marker-symbol" style="background: radial-gradient(circle, rgba(255,59,48,0.4) 0%, transparent 70%); border: 1px solid rgba(255,59,48,0.5);"></span><span>Ripple Rings</span></div>
+                <div class="legend-hint">Each dot = one event · numbers = clusters (click to expand)</div>
             </div>
             <button id="legendOsirisBtn" class="legend-osiris-link" type="button">🛰 Open OSIRIS Live ↗</button>
         </div>
@@ -285,6 +287,18 @@
             </div>
         </nav>
         </div><!-- /rightDock -->
+
+        <!-- Map view controls (OSIRIS ViewSegment parity): 3D/2D + MAP/SAT + scale -->
+        <div id="viewControls">
+            <div id="viewStrip" class="glass-panel" role="toolbar" aria-label="Map view controls">
+                <button id="view3d" class="view-seg active" title="3D Globe (G)" aria-label="3D Globe"><i class="fas fa-globe"></i><span>3D</span></button>
+                <button id="view2d" class="view-seg" title="2D Map (G)" aria-label="2D Map"><i class="fas fa-map"></i><span>2D</span></button>
+                <span class="view-divider"></span>
+                <button id="viewMap" class="view-seg active" title="Dark map" aria-label="Dark map"><i class="fas fa-moon"></i><span>MAP</span></button>
+                <button id="viewSat" class="view-seg" title="Satellite view" aria-label="Satellite view"><i class="fas fa-satellite"></i><span>SAT</span></button>
+            </div>
+            <div id="scaleBar" class="glass-panel" title="Scale at map center"><div id="scaleBarFill"></div><span id="scaleBarLabel"></span></div>
+        </div>
         <script>
         (function() {
             var btn = document.getElementById('legendMinBtn');
@@ -384,6 +398,8 @@
     <script src="layers/streetViewLayer.js?v=3.0" defer></script>
     <script src="js/osirisLink.js?v=3.0" defer></script>
     <script src="ui/legend.js?v=3.0" defer></script>
+    <script src="ui/scalebar.js?v=3.0" defer></script>
+    <script src="ui/shortcuts.js?v=3.0" defer></script>
 
     <!-- Notifications -->
     <script src="js/notifications.js?v=3.0" defer></script>

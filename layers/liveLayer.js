@@ -99,7 +99,7 @@ const LiveLayer = {
                 const entity = MarkerFactory.createPoint(item, color, this._key);
                 entity.show = this.visible;
                 this.entities.push(entity);
-                if (entity.properties.severity === 'High' || entity.properties.severity === 'Critical') {
+                if (entity.properties.severity === 'Critical' || entity.properties.severity === 'Extreme') {
                     if (typeof MarkerPulse !== 'undefined') MarkerPulse.create(entity);
                 }
             } catch (e) { console.warn('LiveLayer marker failed:', item.id, e); }

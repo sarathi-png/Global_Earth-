@@ -31,6 +31,10 @@ const URLStateManager = {
                 try { GlobeManager.map.jumpTo({ center: [lng, lat], zoom: zoom }); } catch (_) {}
             }
         }
+        if (this.params.has('proj') && GlobeManager.setProjection) {
+            const proj = this.params.get('proj') === 'mercator' ? 'mercator' : 'globe';
+            try { GlobeManager._whenReady(() => { GlobeManager.setProjection(proj, false); refreshViewStrip(); }); } catch (_) {}
+        }
         if (this.params.has('layers')) {
             const layerMap = {
                 'disasters': 'toggleDisasters', 'wars': 'toggleWars',
@@ -54,6 +58,7 @@ const URLStateManager = {
         params.set('lat', c.lat.toFixed(4));
         params.set('lng', c.lng.toFixed(4));
         params.set('zoom', c.zoom.toFixed(2));
+        try { params.set('proj', GlobeManager.getProjection()); } catch (_) {}
         const activeLayers = [];
         const layerMap = {
             'toggleDisasters': 'disasters', 'toggleWars': 'wars',
@@ -148,11 +153,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         try { if (typeof ClusteringManager !== 'undefined' && ClusteringManager.init) ClusteringManager.init(); } catch (e) {}
         try { if (typeof NotificationSystem !== 'undefined' && NotificationSystem.init) NotificationSystem.init(); } catch (e) {}
         try { if (typeof StatsDashboard !== 'undefined' && StatsDashboard.init) StatsDashboard.init(); } catch (e) {}
+        try { if (typeof ScaleBar !== 'undefined' && ScaleBar.init) ScaleBar.init(); } catch (e) {}
+        try { if (typeof Shortcuts !== 'undefined' && Shortcuts.init) Shortcuts.init(); } catch (e) {}
 
         try { if (typeof CameraManager !== 'undefined' && CameraManager.home) CameraManager.home(); } catch (e) {}
 
         window.GlobeManager = GlobeManager;
         setupUIListeners();
+        refreshViewStrip();
         syncAllLayerVisibility();
         updateLegendVisibility();
         updateGlobalStats();
@@ -241,7 +249,49 @@ function updateGlobalStats() {
     if (badge) badge.innerText = total;
 }
 
+// Map view strip (OSIRIS ViewSegment parity): reflects projection + basemap,
+// drives them on click. Kept global so legend/shortcuts/URL restore can sync it.
+function refreshViewStrip() {
+    try {
+        const proj = (typeof GlobeManager !== 'undefined' && GlobeManager.getProjection) ? GlobeManager.getProjection() : 'globe';
+        const b3 = document.getElementById('view3d');
+        const b2 = document.getElementById('view2d');
+        if (b3) b3.classList.toggle('active', proj === 'globe');
+        if (b2) b2.classList.toggle('active', proj === 'mercator');
+        const sv = document.getElementById('toggleStreetView');
+        const sat = sv && sv.checked;
+        const bM = document.getElementById('viewMap');
+        const bS = document.getElementById('viewSat');
+        if (bM) bM.classList.toggle('active', !sat);
+        if (bS) bS.classList.toggle('active', !!sat);
+    } catch (_) {}
+}
+window.refreshViewStrip = refreshViewStrip;
+
 function setupUIListeners() {
+    const setStreetView = (on) => {
+        const el = document.getElementById('toggleStreetView');
+        if (el && el.checked !== on) {
+            el.checked = on;
+            el.dispatchEvent(new Event('change'));
+        } else {
+            refreshViewStrip();
+        }
+    };
+    const v3 = document.getElementById('view3d');
+    if (v3) v3.addEventListener('click', () => {
+        if (typeof GlobeManager !== 'undefined' && GlobeManager.setProjection) GlobeManager.setProjection('globe');
+        refreshViewStrip();
+    });
+    const v2 = document.getElementById('view2d');
+    if (v2) v2.addEventListener('click', () => {
+        if (typeof GlobeManager !== 'undefined' && GlobeManager.setProjection) GlobeManager.setProjection('mercator');
+        refreshViewStrip();
+    });
+    const vM = document.getElementById('viewMap');
+    if (vM) vM.addEventListener('click', () => setStreetView(false));
+    const vS = document.getElementById('viewSat');
+    if (vS) vS.addEventListener('click', () => setStreetView(true));
     const toggles = [
         { id: 'toggleDisasters' }, { id: 'toggleWars' },
         { id: 'toggleMysteries' }, { id: 'toggleHistory' },
@@ -271,6 +321,9 @@ function setupUIListeners() {
                     updateGlobalStats();
                     if (typeof updateLegendVisibility === 'function') {
                         updateLegendVisibility();
+                    }
+                    if (t.id === 'toggleStreetView' && typeof refreshViewStrip === 'function') {
+                        refreshViewStrip();
                     }
                 }
             });

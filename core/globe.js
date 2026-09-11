@@ -114,34 +114,40 @@ const GlobeManager = {
             if (!map) return null;
             this.map = map;
 
-            map.on('load', () => {
+            const onReady = () => {
+                if (this._loaded) return;
                 this._loaded = true;
+                try { this.setProjection(this._projection || 'globe', false); } catch (_) {}
                 this._flush();
                 if (this._resolveReady) this._resolveReady(map);
                 console.log('MapLibre globe initialized (source: ' + (window.MAPLIBRE_SOURCE || 'unknown') + ')');
-            });
+            };
+            map.on('load', onReady);
+            this._onStyleReady = onReady;
 
             // If the CARTO style (or its sprites/glyphs) fails, fall back to
             // a bundled dark raster style so the globe always renders.
+            // 'load' may never fire for a dead style, so the fallback also
+            // resolves readiness via the style's idle event.
+            const useFallbackStyle = (why) => {
+                if (this._loaded || this._styleFallbackDone) return;
+                this._styleFallbackDone = true;
+                console.warn('[Globe] basemap style failed (' + why + '), switching to fallback style.');
+                try {
+                    map.setStyle(this.FALLBACK_STYLE);
+                    map.once('idle', () => { if (this._onStyleReady) this._onStyleReady(); });
+                } catch (_) {}
+            };
             map.on('error', (e) => {
                 try {
                     const msg = (e && e.error && e.error.message) || '';
-                    if (!this._loaded && !this._styleFallbackDone &&
-                        /style|sprit|glyph|network|fetch/i.test(msg)) {
-                        this._styleFallbackDone = true;
-                        console.warn('[Globe] basemap style failed, switching to fallback style:', msg);
-                        map.setStyle(this.FALLBACK_STYLE);
-                    }
+                    if (/style|sprit|glyph|network|fetch/i.test(msg)) useFallbackStyle(msg);
                 } catch (_) {}
             });
             // Watchdog: style never reported load → force fallback.
             setTimeout(() => {
                 try {
-                    if (!this._loaded && !this._styleFallbackDone && this.map) {
-                        this._styleFallbackDone = true;
-                        console.warn('[Globe] basemap style timed out, switching to fallback style.');
-                        this.map.setStyle(this.FALLBACK_STYLE);
-                    }
+                    if (!this._loaded && this.map) useFallbackStyle('timeout');
                 } catch (_) {}
             }, 12000);
 
@@ -163,6 +169,49 @@ const GlobeManager = {
     _flush() {
         const ops = this._pending.splice(0);
         ops.forEach((fn) => { try { fn(); } catch (e) { console.warn('[Globe] queued op failed:', e.message); } });
+    },
+
+    // ── projection (OSIRIS 3D globe / 2D map) ──
+    _projection: 'globe',
+    setProjection(p, animate) {
+        this._projection = (p === 'mercator') ? 'mercator' : 'globe';
+        if (!this.map) return this._projection;
+        try {
+            this.map.setProjection({ type: this._projection });
+            if (animate === false) return this._projection;
+            if (this._projection === 'globe') {
+                this.map.easeTo({ pitch: 20, duration: 1200 });
+                try {
+                    this.map.setSky({
+                        'sky-color': '#04040A', 'sky-horizon-blend': 0.5,
+                        'horizon-color': '#0a0a1a', 'horizon-fog-blend': 0.3,
+                        'fog-color': '#04040A', 'fog-ground-blend': 0.9
+                    });
+                } catch (_) { /* older MapLibre without sky */ }
+            } else {
+                this.map.easeTo({ pitch: 0, duration: 800 });
+            }
+        } catch (e) { console.warn('[Globe] projection switch failed:', e.message); }
+        return this._projection;
+    },
+    getProjection() { return this._projection || 'globe'; },
+
+    // Move a raster overlay (aerial/GIBS) below all vector layers so
+    // markers, labels, clusters and fills always draw on top.
+    lowerRaster(id) {
+        this._whenReady(() => {
+            if (!this.map.getLayer(id)) return;
+            const order = [];
+            ['disasters', 'wars', 'mysteries', 'history', 'live', 'sat'].forEach((k) => order.push(k + '-glow'));
+            order.push('aircraft-sym', 'weather-sym', 'borders-fill', 'heatmap-heat',
+                'ripple-ring', 'ripple-arc-glow', 'day-night-fill', 'pulse-ring');
+            for (const lid of order) {
+                if (lid !== id && this.map.getLayer(lid)) {
+                    try { this.map.moveLayer(id, lid); } catch (_) {}
+                    return;
+                }
+            }
+        });
     },
 
     // ── height <-> zoom (keeps old call sites meaningful) ──
@@ -477,6 +526,7 @@ const GlobeManager = {
             if (!this.map.getLayer(id)) {
                 this.map.addLayer({ id, type: 'raster', source: srcId, paint: { 'raster-opacity': (typeof opacity === 'number') ? opacity : 0.9 } });
             }
+            this.lowerRaster(id);
         });
     },
     removeRasterLayer(id) {
