@@ -141,99 +141,115 @@ const LiveApi = {
     },
 
     async fetchGdacsAlerts() {
-        // Primary (static, CORS-friendly): GDACS JSON search API bounded to the
-        // archive window (start → last day of previous month).
+        // Primary: GDACS JSON via proxy (/api/gdacs) — works on dev server.
+        // The proxy returns the same JSON shape the browser expects.
+        let fromdate = '2025-01-01', todate = new Date().toISOString().slice(0, 10);
         try {
-            let fromdate = '2025-01-01', todate = new Date().toISOString().slice(0, 10);
-            try {
-                if (typeof ArchiveRange !== 'undefined') {
-                    const r = ArchiveRange.gdacsRange();
-                    fromdate = r.fromdate;
-                }
-            } catch (_) {}
-            // Use today (not archive cutoff) so live events still in progress
-            // (e.g. the Nepal flood, todate 2026-09-01) are included.
-            todate = new Date().toISOString().slice(0, 10);
-            const url = this.SOURCES.GDACS_API + '?eventlist=EQ;TC;FL;VO;WF;DR'
-                + '&fromdate=' + encodeURIComponent(fromdate)
-                + '&todate=' + encodeURIComponent(todate);
-            const data = await this.fetchJson(url, 15000);
-            const records = Array.isArray(data) ? data : (data && (data.features || data.events || data.records)) || [];
-            if (records && records.length) {
-                const typeMap = { EQ: 'Earthquake', TC: 'Tropical Cyclone', FL: 'Flood', VO: 'Volcano', WF: 'Wildfire', DR: 'Drought' };
-                return records.slice(0, 100).map((r, i) => {
-                    const props = (r && r.properties) || r || {};
-                    const geom = r && r.geometry;
-                    let lat = props.lat ?? props.latitude, lng = props.lon ?? props.lng ?? props.longitude;
-                    if ((lat === undefined || lng === undefined) && geom && geom.coordinates) {
-                        lng = geom.coordinates[0]; lat = geom.coordinates[1];
-                    }
-                    lat = parseFloat(lat); lng = parseFloat(lng);
-                    if (!isFinite(lat) || !isFinite(lng)) return null;
-                    const et = props.eventtype || props.eventType || '';
-                    const category = typeMap[et] || props.category || 'Disaster';
-                    const alertLevel = props.alertlevel || props.alertLevel || 'Green';
-                    const country = props.country || props.iso3 || '';
-                    return {
-                        id: 'gdacs-' + (props.eventid || props.eventId || props.id || i),
-                        title: props.title || (category + (country ? ' — ' + country : '')),
-                        type: 'live', category, lat, lng, year: new Date().getFullYear(),
-                        severity: this.normalizeSeverity(alertLevel, 'gdacs'),
-                        description: (props.description || ('GDACS ' + alertLevel + ' ' + category + ' alert.')) + (country ? ' Country: ' + country + '.' : ''),
-                        source: 'GDACS', alertLevel, wikiQuery: category + (country ? ' in ' + country : '')
-                    };
-                }).filter(Boolean);
+            if (typeof ArchiveRange !== 'undefined') {
+                const r = ArchiveRange.gdacsRange();
+                fromdate = r.fromdate;
             }
-        } catch (e) { console.warn('GDACS JSON fetch failed, trying XML fallback:', e.message); }
-        // Fallback: legacy XML RSS (needs proxy in some environments; may fail static — non-fatal).
+        } catch (_) {}
+        todate = new Date().toISOString().slice(0, 10);
+        const qs = '?eventlist=EQ;TC;FL;VO;WF;DR'
+            + '&fromdate=' + encodeURIComponent(fromdate)
+            + '&todate=' + encodeURIComponent(todate);
+
+        // Attempt 1: proxy (dev server)
+        try {
+            const data = await this.fetchJson(this.SOURCES.GDACS_API + qs, 15000);
+            const records = this._parseGdacsRecords(data);
+            if (records && records.length) return records;
+        } catch (e) { console.warn('GDACS proxy fetch failed:', e.message); }
+
+        // Attempt 2: direct gdacs.org JSON (static hosts — CORS may allow it)
+        try {
+            const DIRECT = 'https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH';
+            const data = await this.fetchJson(DIRECT + qs, 15000);
+            const records = this._parseGdacsRecords(data);
+            if (records && records.length) return records;
+        } catch (e) { console.warn('GDACS direct fetch failed (CORS?):', e.message); }
+
+        // Attempt 3: legacy XML RSS (needs proxy in some environments; may fail static)
         try {
             const doc = await this.fetchXml(this.SOURCES.GDACS_XML);
-            const items = doc.querySelectorAll('item');
-            var self = this;
-            var eventTypeMap = {
-                'EQ': 'Earthquake', 'FL': 'Flood', 'TC': 'Tropical Cyclone',
-                'WF': 'Wildfire', 'DR': 'Drought', 'VO': 'Volcano',
-                'LS': 'Landslide', 'EP': 'Epidemic', 'FI': 'Flood'
-            };
-            return Array.from(items).map(function(item) {
-                var titleEl = item.querySelector('title');
-                var title = titleEl ? titleEl.textContent.trim() : 'GDACS Alert';
-                var descEl = item.querySelector('description');
-                var description = descEl ? descEl.textContent.trim() : '';
-                var latEl = item.querySelector('lat');
-                var lngEl = item.querySelector('long');
-                if (!latEl || !lngEl) return null;
-                var lat = parseFloat(latEl.textContent);
-                var lng = parseFloat(lngEl.textContent);
-                if (isNaN(lat) || isNaN(lng)) return null;
-                var alertLevelEl = item.querySelector('alertlevel');
-                var alertLevel = alertLevelEl ? alertLevelEl.textContent.trim() : 'Green';
-                var eventTypeEl = item.querySelector('eventtype');
-                var eventTypeCode = eventTypeEl ? eventTypeEl.textContent.trim() : '';
-                var category = eventTypeMap[eventTypeCode] || eventTypeCode || 'Disaster';
-                var countryEl = item.querySelector('country');
-                var country = countryEl ? countryEl.textContent.trim() : '';
-                var popEl = item.querySelector('population');
-                var population = popEl ? popEl.textContent.trim() : '';
-                var eventidEl = item.querySelector('eventid');
-                var eventId = eventidEl ? eventidEl.textContent.trim() : '';
-                var severityEl = item.querySelector('severity');
-                var severityText = severityEl ? severityEl.textContent.trim() : '';
-                var desc = description || ('GDACS ' + alertLevel + ' ' + category + ' alert. Country: ' + (country || 'Unknown') + '.');
-                if (population) desc += ' Population affected: ' + population + '.';
-                if (severityText) desc += ' Severity: ' + severityText + '.';
-                var qTitle = category;
-                if (country) qTitle += ' in ' + country;
-                return {
-                    id: 'gdacs-' + (eventId || Math.random().toString(36).slice(2)),
-                    title: title, type: 'live', category: category,
-                    lat: lat, lng: lng, year: new Date().getFullYear(),
-                    severity: self.normalizeSeverity(alertLevel, 'gdacs'),
-                    description: desc, source: 'GDACS',
-                    alertLevel: alertLevel, wikiQuery: qTitle
-                };
-            }).filter(Boolean);
+            return this._parseGdacsXml(doc);
         } catch (e) { console.warn('GDACS RSS fetch failed:', e.message); return []; }
+    },
+
+    _parseGdacsRecords(data) {
+        const records = Array.isArray(data) ? data : (data && (data.features || data.events || data.records)) || [];
+        if (!records || !records.length) return [];
+        const typeMap = { EQ: 'Earthquake', TC: 'Tropical Cyclone', FL: 'Flood', VO: 'Volcano', WF: 'Wildfire', DR: 'Drought' };
+        return records.slice(0, 100).map((r, i) => {
+            const props = (r && r.properties) || r || {};
+            const geom = r && r.geometry;
+            let lat = props.lat ?? props.latitude, lng = props.lon ?? props.lng ?? props.longitude;
+            if ((lat === undefined || lng === undefined) && geom && geom.coordinates) {
+                lng = geom.coordinates[0]; lat = geom.coordinates[1];
+            }
+            lat = parseFloat(lat); lng = parseFloat(lng);
+            if (!isFinite(lat) || !isFinite(lng)) return null;
+            const et = props.eventtype || props.eventType || '';
+            const category = typeMap[et] || props.category || 'Disaster';
+            const alertLevel = props.alertlevel || props.alertLevel || 'Green';
+            const country = props.country || props.iso3 || '';
+            return {
+                id: 'gdacs-' + (props.eventid || props.eventId || props.id || i),
+                title: props.title || (category + (country ? ' — ' + country : '')),
+                type: 'live', category, lat, lng, year: new Date().getFullYear(),
+                severity: this.normalizeSeverity(alertLevel, 'gdacs'),
+                description: (props.description || ('GDACS ' + alertLevel + ' ' + category + ' alert.')) + (country ? ' Country: ' + country + '.' : ''),
+                source: 'GDACS', alertLevel, wikiQuery: category + (country ? ' in ' + country : '')
+            };
+        }).filter(Boolean);
+    },
+
+    _parseGdacsXml(doc) {
+        const items = doc.querySelectorAll('item');
+        const eventTypeMap = {
+            'EQ': 'Earthquake', 'FL': 'Flood', 'TC': 'Tropical Cyclone',
+            'WF': 'Wildfire', 'DR': 'Drought', 'VO': 'Volcano',
+            'LS': 'Landslide', 'EP': 'Epidemic', 'FI': 'Flood'
+        };
+        return Array.from(items).map(item => {
+            var titleEl = item.querySelector('title');
+            var title = titleEl ? titleEl.textContent.trim() : 'GDACS Alert';
+            var descEl = item.querySelector('description');
+            var description = descEl ? descEl.textContent.trim() : '';
+            var latEl = item.querySelector('lat');
+            var lngEl = item.querySelector('long');
+            if (!latEl || !lngEl) return null;
+            var lat = parseFloat(latEl.textContent);
+            var lng = parseFloat(lngEl.textContent);
+            if (isNaN(lat) || isNaN(lng)) return null;
+            var alertLevelEl = item.querySelector('alertlevel');
+            var alertLevel = alertLevelEl ? alertLevelEl.textContent.trim() : 'Green';
+            var eventTypeEl = item.querySelector('eventtype');
+            var eventTypeCode = eventTypeEl ? eventTypeEl.textContent.trim() : '';
+            var category = eventTypeMap[eventTypeCode] || eventTypeCode || 'Disaster';
+            var countryEl = item.querySelector('country');
+            var country = countryEl ? countryEl.textContent.trim() : '';
+            var popEl = item.querySelector('population');
+            var population = popEl ? popEl.textContent.trim() : '';
+            var eventidEl = item.querySelector('eventid');
+            var eventId = eventidEl ? eventidEl.textContent.trim() : '';
+            var severityEl = item.querySelector('severity');
+            var severityText = severityEl ? severityEl.textContent.trim() : '';
+            var desc = description || ('GDACS ' + alertLevel + ' ' + category + ' alert. Country: ' + (country || 'Unknown') + '.');
+            if (population) desc += ' Population affected: ' + population + '.';
+            if (severityText) desc += ' Severity: ' + severityText + '.';
+            var qTitle = category;
+            if (country) qTitle += ' in ' + country;
+            return {
+                id: 'gdacs-' + (eventId || Math.random().toString(36).slice(2)),
+                title: title, type: 'live', category: category,
+                lat: lat, lng: lng, year: new Date().getFullYear(),
+                severity: this.normalizeSeverity(alertLevel, 'gdacs'),
+                description: desc, source: 'GDACS',
+                alertLevel: alertLevel, wikiQuery: qTitle
+            };
+        }).filter(Boolean);
     },
 
     async fetchNoaaAlerts() {

@@ -104,6 +104,7 @@ const LiveLayer = {
         GlobeManager.syncLayer(this, this._key);
         GlobeManager.setGroupVisible(this._key, this.visible);
         if (typeof updateGlobalStats === 'function') updateGlobalStats();
+        if (typeof SearchEngine !== 'undefined' && SearchEngine.rebuildIndex) SearchEngine.rebuildIndex();
     },
 
     clearEntities() {

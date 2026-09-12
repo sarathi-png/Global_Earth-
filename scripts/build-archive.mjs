@@ -93,12 +93,14 @@ await step('GDACS', async () => {
         if (!isFinite(lat) || !isFinite(lng)) return null;
         const et = p.eventtype || p.eventType || '';
         const category = typeMap[et] || 'Disaster';
+        const country = p.country || p.iso3 || '';
+        const wikiQ = category + (country ? ' in ' + country : '');
         return {
             id: 'gdacs-' + (p.eventid || p.eventId || p.id || i),
             title: p.title || category, type: 'live', category, lat, lng,
             year: new Date(END).getFullYear(), severity: 'Moderate',
-            description: 'GDACS ' + category + ' alert (archive).', source: 'GDACS (archive)',
-            wikiQuery: category
+            description: 'GDACS ' + category + ' alert (archive).' + (country ? ' Country: ' + country + '.' : ''),
+            source: 'GDACS (archive)', wikiQuery: wikiQ
         };
     }).filter(Boolean);
 });
