@@ -22,7 +22,7 @@ A fully static 3D globe intelligence platform built with [MapLibre GL](https://m
 - **Legend hover + click** — hover tooltip (label, visible count, description); single click enables the layer and flies to it; markers single-click opens drawer + flies, double-click zooms closer, clusters expand on click; pulse rings only on Critical/Extreme events
 - **View controls (OSIRIS parity)** — bottom-left 3D/2D globe switch (`G`), MAP/SAT basemap switch (SAT = keyless ESRI aerial under markers), live scale bar, `?` shortcuts overlay (`R` home, `F` fullscreen, `S` copy share link, `L` panel, `I` feed, `ESC` close); projection persists in `&proj=`
 - **Panels (OSIRIS parity)** — sidebar layer rows + group headers show live counts; intel feed has severity filter chips (ALL/CRIT/HIGH/MOD) and opens the drawer on click; share modal copies the view link or map-center OSIRIS deep-link; saved views (localStorage) restore position + layers; bottom status bar shows live state, event total, 3D/2D + MAP/SAT tags, cursor coords; aircraft drawers link FlightAware/ADS-B/RadarBox, satellites link N2YO/CelesTrak
-- **OSIRIS Live mapping** — sidebar, legend, and per-incident drawer buttons open `https://osirisai.live/?lat=…&lng=…&zoom=…&label=…` (the OSIRIS app flies to the shared incident on load)
+- **OSIRIS Live mapping** — sidebar, legend, and per-incident drawer buttons open `https://osirisai.live/?lat=…&lng=…&zoom=…` (lat/lng only; the OSIRIS app flies to the shared incident on load)
 - **GIBS / Heatmap / Ripple / DayNight** overlays; clustering, URL sync, PWA, offline-capable static assets
 
 ## Requirements

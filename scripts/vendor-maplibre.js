@@ -11,12 +11,12 @@ const FORCE = process.argv.includes('--force');
 
 const FILES = [
   { name: 'maplibre-gl.js', urls: [
-    'https://cdn.jsdelivr.net/npm/maplibre-gl@4/dist/maplibre-gl.js',
-    'https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.js',
+    'https://cdn.jsdelivr.net/npm/maplibre-gl@5/dist/maplibre-gl.js',
+    'https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.js',
   ]},
   { name: 'maplibre-gl.css', urls: [
-    'https://cdn.jsdelivr.net/npm/maplibre-gl@4/dist/maplibre-gl.css',
-    'https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.css',
+    'https://cdn.jsdelivr.net/npm/maplibre-gl@5/dist/maplibre-gl.css',
+    'https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.css',
   ]},
 ];
 

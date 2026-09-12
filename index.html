@@ -14,18 +14,18 @@
          fallbacks. Order-safe: document.write runs at parse time so deferred
          app scripts always see the final maplibregl (or none). -->
     <link rel="stylesheet" href="vendor/maplibre/maplibre-gl.css"
-        onerror="var l=document.createElement('link');l.rel='stylesheet';l.href='https://cdn.jsdelivr.net/npm/maplibre-gl@4/dist/maplibre-gl.css';document.head.appendChild(l);">
+        onerror="var l=document.createElement('link');l.rel='stylesheet';l.href='https://cdn.jsdelivr.net/npm/maplibre-gl@5/dist/maplibre-gl.css';document.head.appendChild(l);">
     <script src="vendor/maplibre/maplibre-gl.js"></script>
     <script>
       window.MAPLIBRE_SOURCE = 'local';
       if (typeof maplibregl === 'undefined') {
-        document.write('<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@4/dist/maplibre-gl.js"><\/script>');
+        document.write('<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@5/dist/maplibre-gl.js"><\/script>');
         window.MAPLIBRE_SOURCE = 'jsdelivr';
       }
     </script>
     <script>
       if (typeof maplibregl === 'undefined') {
-        document.write('<script src="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.js"><\/script>');
+        document.write('<script src="https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.js"><\/script>');
         window.MAPLIBRE_SOURCE = 'unpkg';
       }
     </script>

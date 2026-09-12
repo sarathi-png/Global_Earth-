@@ -4,6 +4,8 @@
 // the location on load (see D:\Projects\osiris src/app/page.tsx).
 const OsirisLink = {
     BASE: 'https://osirisai.live/',
+    // Deep-link carries ONLY lat/lng (+zoom). No event name/label — the
+    // target app ignores unknown params and they only bloat the URL.
     build(lat, lng, label, zoom) {
         let url = this.BASE;
         try {
@@ -16,7 +18,6 @@ const OsirisLink = {
             const z = Number(zoom);
             if (isFinite(z) && z > 0) q.push('zoom=' + encodeURIComponent(Math.min(18, z)));
             else if (q.length) q.push('zoom=8');
-            if (label) q.push('label=' + encodeURIComponent(String(label).slice(0, 80)));
             if (q.length) url += '?' + q.join('&');
         } catch (_) {}
         return url;
