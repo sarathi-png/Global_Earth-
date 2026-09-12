@@ -278,29 +278,29 @@ const GlobeManager = {
                 this._clusterState[key] = useCluster;
                 const noCluster = useCluster ? ['!', ['has', 'point_count']] : null;
 
-                // glow halo
-                this.map.addLayer({
-                    id: key + '-glow', type: 'circle', source: srcId,
-                    filter: noCluster,
-                    paint: {
-                        'circle-radius': ['interpolate', ['linear'], ['zoom'], 1, 6, 5, 12, 10, 20],
-                        'circle-color': ['get', 'color'],
-                        'circle-opacity': 0.12, 'circle-blur': 1
-                    }
-                });
-                // core dot
-                this.map.addLayer({
-                    id: key + '-dots', type: 'circle', source: srcId,
-                    filter: noCluster,
-                    paint: {
-                        'circle-radius': ['interpolate', ['linear'], ['zoom'], 1, 4, 5, 6, 10, 10],
-                        'circle-color': ['get', 'color'],
-                        'circle-opacity': 0.85,
-                        'circle-stroke-width': 1.5,
-                        'circle-stroke-color': ['get', 'color'],
-                        'circle-stroke-opacity': 0.4
-                    }
-                });
+                 // core dot
+                 this.map.addLayer({
+                     id: key + '-dots', type: 'circle', source: srcId,
+                     filter: noCluster,
+                     paint: {
+                         'circle-radius': ['interpolate', ['linear'], ['zoom'], 1, 4, 5, 6, 10, 10],
+                         'circle-color': ['get', 'color'],
+                         'circle-opacity': 0.9,
+                         'circle-stroke-width': 2,
+                         'circle-stroke-color': '#000000',
+                         'circle-stroke-opacity': 0.75
+                     }
+                 });
+                 // glow halo
+                 this.map.addLayer({
+                     id: key + '-glow', type: 'circle', source: srcId,
+                     filter: noCluster,
+                     paint: {
+                         'circle-radius': ['interpolate', ['linear'], ['zoom'], 1, 8, 5, 16, 10, 28],
+                         'circle-color': ['get', 'color'],
+                         'circle-opacity': 0.2, 'circle-blur': 0.7
+                     }
+                 });
                 // label
                 this.map.addLayer({
                     id: key + '-label', type: 'symbol', source: srcId,
@@ -321,36 +321,38 @@ const GlobeManager = {
                         'text-opacity': 0.85
                     }
                 });
-                // clusters (only for clustered sources)
-                if (useCluster) {
-                    this.map.addLayer({
-                        id: key + '-cluster', type: 'circle', source: srcId,
-                        filter: ['has', 'point_count'],
-                        paint: {
-                            'circle-radius': ['step', ['get', 'point_count'], 16, 100, 22, 750, 30],
-                            'circle-color': '#223448',
-                            'circle-opacity': 0.9,
-                            'circle-stroke-width': 2,
-                            'circle-stroke-color': '#9fb3c8',
-                            'circle-stroke-opacity': 0.8
-                        }
-                    });
-                    this.map.addLayer({
-                        id: key + '-count', type: 'symbol', source: srcId,
-                        filter: ['has', 'point_count'],
-                        layout: {
-                            'text-field': ['get', 'point_count_abbreviated'],
-                            'text-size': 12,
-                            'text-font': ['Noto Sans Bold', 'Open Sans Bold']
-                        },
-                        paint: { 'text-color': '#ffffff' }
-                    });
-                }
-            }
-            // (re)register pickables
-            (opts.pickExtra || []).concat([key + '-dots']).forEach((lid) => {
-                if (this._pickableIds.indexOf(lid) === -1) this._pickableIds.push(lid);
-            });
+                 // clusters (only for clustered sources)
+                 if (useCluster) {
+                     this.map.addLayer({
+                         id: key + '-cluster', type: 'circle', source: srcId,
+                         filter: ['has', 'point_count'],
+                         paint: {
+                             'circle-radius': ['step', ['get', 'point_count'], 20, 100, 26, 750, 34],
+                             'circle-color': '#2a4a6f',
+                             'circle-opacity': 0.95,
+                             'circle-stroke-width': 2.5,
+                             'circle-stroke-color': '#7fa8cc',
+                             'circle-stroke-opacity': 0.9
+                         }
+                     });
+                     this.map.addLayer({
+                         id: key + '-count', type: 'symbol', source: srcId,
+                         filter: ['has', 'point_count'],
+                         layout: {
+                             'text-field': ['get', 'point_count_abbreviated'],
+                             'text-size': 13,
+                             'text-font': ['Noto Sans Bold', 'Open Sans Bold']
+                         },
+                         paint: { 'text-color': '#ffffff', 'text-halo-color': '#0b0e14', 'text-halo-width': 2 }
+                     });
+                 }
+             }
+             // (re)register ALL point layers as pickable so clusters,
+             // glow halos and labels are clickable at any zoom.
+             [key + '-dots', key + '-glow', key + '-label', key + '-cluster', key + '-count']
+                 .forEach((lid) => {
+                     if (this._pickableIds.indexOf(lid) === -1) this._pickableIds.push(lid);
+                 });
         });
     },
 
@@ -448,10 +450,11 @@ const GlobeManager = {
         if (layerObj._pickRegistered !== key) {
             layerObj._pickRegistered = key;
             this._whenReady(() => {
-                (layerObj._pickExtra || []).concat([key + '-dots']).forEach((lid) => {
-                    this._pickables[lid] = layerObj;
-                    if (this._pickableIds.indexOf(lid) === -1) this._pickableIds.push(lid);
-                });
+                [key + '-dots', key + '-glow', key + '-label', key + '-cluster', key + '-count']
+                    .forEach((lid) => {
+                        this._pickables[lid] = layerObj;
+                        if (this._pickableIds.indexOf(lid) === -1) this._pickableIds.push(lid);
+                    });
             });
         }
     },

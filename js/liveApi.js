@@ -3,7 +3,8 @@ const LiveApi = {
         EONET: CONFIG.SOURCES.EONET,
         USGS: CONFIG.SOURCES.USGS,
         // Static-first: GDACS JSON API (CORS-friendly). Legacy XML RSS kept as fallback.
-        GDACS_API: 'https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH',
+        // Dev server proxies /api/gdacs to gdacs.org to bypass browser CORS.
+        GDACS_API: '/api/gdacs',
         GDACS_XML: 'https://www.gdacs.org/xml/rss.xml',
         NOAA: CONFIG.SOURCES.NOAA_NWS,
         FIRMS: CONFIG.SOURCES.FIRMS,
@@ -147,9 +148,12 @@ const LiveApi = {
             try {
                 if (typeof ArchiveRange !== 'undefined') {
                     const r = ArchiveRange.gdacsRange();
-                    fromdate = r.fromdate; todate = r.todate;
+                    fromdate = r.fromdate;
                 }
             } catch (_) {}
+            // Use today (not archive cutoff) so live events still in progress
+            // (e.g. the Nepal flood, todate 2026-09-01) are included.
+            todate = new Date().toISOString().slice(0, 10);
             const url = this.SOURCES.GDACS_API + '?eventlist=EQ;TC;FL;VO;WF;DR'
                 + '&fromdate=' + encodeURIComponent(fromdate)
                 + '&todate=' + encodeURIComponent(todate);

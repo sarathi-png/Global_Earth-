@@ -31,9 +31,6 @@ const DisastersLayer = {
                 const entity = MarkerFactory.createPoint(item, color, this._key);
                 entity.show = this.visible;
                 this.entities.push(entity);
-                if (entity.properties.severity === 'Critical' || entity.properties.severity === 'Extreme') {
-                    if (typeof MarkerPulse !== 'undefined') MarkerPulse.create(entity);
-                }
             } catch (e) {
                 console.error('DisastersLayer: Error creating marker for item', item.id, e);
             }

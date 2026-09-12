@@ -55,6 +55,27 @@ const server = http.createServer((req, res) => {
         return;
     }
 
+    // GDACS proxy — bypasses browser CORS so the live disaster feed
+    // (including recent events like the Nepal flood) reaches the app.
+    if (safePath === 'api/gdacs') {
+        const gdacsUrl = 'https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH'
+            + (parsedUrl.search || '');
+        try {
+            const https = require('https');
+            const req = https.get(gdacsUrl, (gres) => {
+                let body = '';
+                gres.on('data', (c) => { body += c; });
+                gres.on('end', () => {
+                    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Access-Control-Allow-Origin': '*' });
+                    res.end(body);
+                });
+            });
+            req.on('error', () => { res.writeHead(502); res.end('GDACS proxy error'); });
+            req.setTimeout(20000, () => { req.destroy(); res.writeHead(504); res.end('GDACS proxy timeout'); });
+        } catch (e) { res.writeHead(502); res.end('GDACS proxy error'); }
+        return;
+    }
+
     // Dev-only config injection (static hosts use URL params instead)
     if (safePath === 'js/config.js') {
         try {

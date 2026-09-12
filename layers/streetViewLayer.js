@@ -19,7 +19,7 @@ const StreetViewLayer = {
         if (show) {
             const tiles = (CONFIG.MAP && CONFIG.MAP.AERIAL_TILES) ||
                 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
-            GlobeManager.addRasterLayer('street-aerial', tiles, (CONFIG.MAP && CONFIG.MAP.AERIAL_ATTR) || 'Esri World Imagery', 0.95);
+            GlobeManager.addRasterLayer('street-aerial', tiles, (CONFIG.MAP && CONFIG.MAP.AERIAL_ATTR) || 'Esri World Imagery', 0.85);
             this._aerialOn = true;
         } else if (this._aerialOn) {
             GlobeManager.removeRasterLayer('street-aerial');
